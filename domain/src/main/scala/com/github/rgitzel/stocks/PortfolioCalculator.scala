@@ -1,8 +1,9 @@
 package com.github.rgitzel.stocks
 
-import com.github.rgitzel.stocks.models.{Currency, Price, Stock, TradingDay}
+import com.github.rgitzel.stocks.models._
+import com.github.rgitzel.stocks.repositories._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent._
 
 class PortfolioCalculator(forexRepository: ForexRepository, holdingsRepository: HoldingsRepository, pricesRepository: PricesRepository)(implicit ec: ExecutionContext) {
   def value(day: TradingDay, currency: Currency): Future[Map[Symbol,Double]] = {
@@ -24,9 +25,15 @@ class PortfolioCalculator(forexRepository: ForexRepository, holdingsRepository: 
     yield (rates, prices, holdings)
   }
 
-  private def convertedPrices(prices: Map[Stock,Price], rates: Map[(Currency,Currency),Double], convertTo: Currency) = {
+  private def convertedPrices(prices: Map[Stock,Price], rates: Map[ConversionCurrencies,Double], convertTo: Currency) = {
     // since the `to` currency is fixed, we can simplify the rates Map
-    val convertToRates = rates.filter(_._1._2 == convertTo).map(p => (p._1._1, p._2))
+    val convertToRates = rates.view
+      .filterKeys(_.to == convertTo)
+      .map{ case (currencies, price) =>
+        (currencies.from, price)
+      }
+      .toMap
+
     prices.map{ case(stock, originalPrice) =>
       val newPrice = if(originalPrice.currency == convertTo) {
         // already in the desired currency

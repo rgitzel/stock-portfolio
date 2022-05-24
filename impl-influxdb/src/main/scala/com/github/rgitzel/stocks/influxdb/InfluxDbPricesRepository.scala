@@ -1,7 +1,7 @@
 package com.github.rgitzel.stocks.influxdb
 
-import com.github.rgitzel.stocks.PricesRepository
 import com.github.rgitzel.stocks.models._
+import com.github.rgitzel.stocks.repositories.PricesRepository
 import com.influxdb.query.dsl.Flux
 import com.influxdb.query.dsl.functions.restriction.Restrictions
 

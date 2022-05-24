@@ -1,7 +1,7 @@
 package com.github.rgitzel.stocks.influxdb
 
-import com.github.rgitzel.stocks.ForexRepository
 import com.github.rgitzel.stocks.models._
+import com.github.rgitzel.stocks.repositories.ForexRepository
 import com.influxdb.query.dsl.Flux
 import com.influxdb.query.dsl.functions.restriction.Restrictions
 
@@ -11,7 +11,7 @@ class InfluxDbForexRepository(influxdb: InfluxDbQueryRunner)(implicit ec: Execut
   extends ForexRepository {
   private val databaseName = "stocks"
 
-  override def closingRates(day: TradingDay): Future[Map[(Currency,Currency),Double]] = {
+  override def closingRates(day: TradingDay): Future[Map[ConversionCurrencies,Double]] = {
     val ts = Days.toInstant(day)
     val fluxQuery = Flux.from(databaseName)
       .range(ts.minusMillis(1), ts.plusMillis(1))
@@ -23,7 +23,7 @@ class InfluxDbForexRepository(influxdb: InfluxDbQueryRunner)(implicit ec: Execut
       (tags.get("from"), tags.get("to")) match {
         case (Some(from), Some(to)) =>
           (
-            (
+            ConversionCurrencies(
               ThreeLetterCurrencyCodes.toCurrency(from),
               ThreeLetterCurrencyCodes.toCurrency(to)
             ),
