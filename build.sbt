@@ -6,9 +6,15 @@ lazy val root = (project in file("."))
   .settings(
     name := "stock-portfolio"
   )
-  .aggregate(domain, influxdb)
+  .aggregate(apps, domain, influxdb)
 
 // ====================================================
+
+lazy val apps = (project in file("apps"))
+  .settings(
+    name := "stock-portfolio-apps"
+  )
+  .dependsOn(domain, influxdb)
 
 lazy val domain = (project in file("domain"))
   .settings(
