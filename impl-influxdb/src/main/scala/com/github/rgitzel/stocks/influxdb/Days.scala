@@ -5,9 +5,10 @@ import com.github.rgitzel.stocks.models.TradingDay
 import java.time.{Instant, MonthDay, Year, YearMonth, ZoneOffset}
 
 object Days {
-  def toInstant(day: TradingDay): Instant = {
-    val monthPrefix = if(day.month < 10) "0" else ""
-    val iso8601 = s"${day.year}-${monthPrefix}${day.month}-${day.day}T00:00:00.000Z"
+  def toInstant(tradingDay: TradingDay): Instant = {
+    val monthPrefix = if(tradingDay.month < 10) "0" else ""
+    val dayPrefix = if(tradingDay.day < 10) "0" else ""
+    val iso8601 = s"${tradingDay.year}-${monthPrefix}${tradingDay.month}-${dayPrefix}${tradingDay.day}T00:00:00.000Z"
     Instant.parse(iso8601)
   }
 

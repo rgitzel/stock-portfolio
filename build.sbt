@@ -21,12 +21,14 @@ lazy val domain = (project in file("domain"))
     name := "stock-portfolio-domain"
   )
 
+val InfluxDbClientVersion = "6.1.0"
+
 lazy val influxdb = (project in file("impl-influxdb"))
   .settings(
     name := "stock-portfolio-influxdb",
     libraryDependencies ++= Seq(
-      "com.influxdb" %% "influxdb-client-scala" % "6.0.0",
-      "com.influxdb" % "flux-dsl" % "6.0.0"
+      "com.influxdb" %% "influxdb-client-scala" % InfluxDbClientVersion,
+      "com.influxdb" % "flux-dsl" % InfluxDbClientVersion
     )
   )
   .dependsOn(domain)
