@@ -1,9 +1,9 @@
 package com.github.rgitzel.stocks
 
-import com.github.rgitzel.stocks.models.{ConversionCurrencies, Currency, Price, Stock}
+import com.github.rgitzel.stocks.models.{ConversionCurrencies, Currency, MonetaryValue, Stock}
 
 class Validator(currency: Currency) {
-  def areComplete(portfolio: Map[Stock,Int], prices: Map[Stock,Price], exchangeRates: Map[ConversionCurrencies,Double]): Option[String] = {
+  def allDataExistsForPortfolio(label: String, portfolio: Map[Stock,Int], prices: Map[Stock,MonetaryValue], exchangeRates: Map[ConversionCurrencies,Double]): Option[String] = {
     val expectedStocks = portfolio.keys.toSet
     val givenStocks = prices.keys.toSet
     val missingStocks = expectedStocks
@@ -20,7 +20,22 @@ class Validator(currency: Currency) {
       case ("", "") =>
         None
       case _ =>
-        Some(s"missing stocks: ${missingStocks}\nmissing conversions: ${missingExchangeRates}")
+        Some(s"portfolio ${label} missing stocks: '${missingStocks}' and/or missing conversions: '${missingExchangeRates}''")
+    }
+  }
+
+  def allDataExistsForPortfolios(portfolios: Map[String, Map[Stock,Int]], prices: Map[Stock,MonetaryValue], exchangeRates: Map[ConversionCurrencies,Double]): Option[String] = {
+    val errors = portfolios.foldLeft(List[String]()){ case (accumulatedErrors, (label, portfolio)) =>
+      allDataExistsForPortfolio(label, portfolio, prices, exchangeRates) match {
+        case Some(error) =>
+          accumulatedErrors :+ error
+        case _ =>
+          accumulatedErrors
+      }
+    }
+    errors match {
+      case Nil => None
+      case _ => Some(errors.mkString(", "))
     }
   }
 }

@@ -14,7 +14,7 @@ class InfluxDbForexRepository(influxdb: InfluxDbOperations)
   private val measurement = "forex"
 
   override def closingRates(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
-    val ts = Days.toInstant(day)
+    val ts = TradingDay.toInstant(day)
     val fluxQuery = Flux.from(databaseName)
       .range(ts.minusMillis(1), ts.plusMillis(1))
       .filter(

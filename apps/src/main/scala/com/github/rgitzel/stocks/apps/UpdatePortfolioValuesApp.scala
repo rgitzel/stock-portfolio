@@ -1,7 +1,7 @@
 package com.github.rgitzel.stocks.apps
 
 import akka.actor.ActorSystem
-import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbPricesRepository, InfluxDbOperations}
+import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbOperations, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.{Summarizer, Validator}
 import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
@@ -19,56 +19,82 @@ object UpdatePortfolioValuesApp extends App {
     val influxDb = new InfluxDbOperations(influxDBClient)
     val pricesRepository = new InfluxDbPricesRepository(influxDb)
     val forexRepository = new InfluxDbForexRepository(influxDb)
+    val portfolioValueRepository = new InfluxDbPortfolioValueRepository(influxDb)
 
-    val day = TradingDay(4, 1, 2022)
+    val lastDay = TradingDay(8, 6, 2021)
+    val days = lastDay.preceedingWeeks(6)
+    days.foreach(println)
 
     val desiredCurrency = Currency("CAD")
 
     val portfolios = Map(
     )
 
-    val data = for {
-      prices <- pricesRepository.closingPrices(day)
-      rates <- forexRepository.closingRates(day)
-    }
-    yield (rates, prices)
+    val perDay: List[Future[String]] = days.map{ day =>
+      println()
+      println(s"processing ${day}")
 
-    data
-      .flatMap { case (exchangeRates, pricesForStocks) =>
-        val (alreadyInDesiredCurrency, needToBeConverted) = pricesForStocks.partition(_._2.currency == desiredCurrency)
-        // add prices in desired currency
-        Future.sequence(
-          needToBeConverted
-            .map { case (stock, price) =>
-              val newPrice = price.value * exchangeRates.getOrElse(ConversionCurrencies(price.currency, desiredCurrency), throw new Exception("wtf?"))
-              println(s"updating ${stock} with ${newPrice}")
-              pricesRepository.updateClosingPrice(day, stock, Price(newPrice, desiredCurrency))
-                .map { _ =>
-                  (stock, Price(newPrice, desiredCurrency))
-                }
-            }
-        )
-          .map { convertedPrices =>
-            val pricesInDesiredCurrency = alreadyInDesiredCurrency ++ convertedPrices.toMap
-            // figure out the values
-            portfolios.map { case (label, portfolio) =>
-              new Validator(desiredCurrency).areComplete(portfolio, pricesInDesiredCurrency, exchangeRates) match {
-                case None =>
-                  val results = new Summarizer(desiredCurrency)
-                    .summarize(portfolio, pricesInDesiredCurrency, exchangeRates)
+      val data = for {
+        prices <- pricesRepository.closingPrices(day)
+        rates <- forexRepository.closingRates(day)
+      }
+      yield (rates, prices)
+
+      data.flatMap { case (exchangeRates, pricesForStocks) =>
+        val convertedPrices = pricesToUpdate(day, exchangeRates, pricesForStocks, desiredCurrency)
+        pricesRepository.updateClosingPrices(day, convertedPrices)
+          .flatMap { _ =>
+            val pricesInAllCurrencies = pricesForStocks ++ convertedPrices
+            new Validator(desiredCurrency).allDataExistsForPortfolios(portfolios, pricesInAllCurrencies, exchangeRates) match {
+              case None =>
+                val portfolioUpdates = portfolios.flatMap { case (label, portfolio) =>
+                  new Summarizer(desiredCurrency)
+                    .summarize(portfolio, pricesInAllCurrencies, exchangeRates)
                     .toList
                     .sortBy(_._1.symbol)
-                  println(label)
-                  results.foreach(println)
-                  println()
-                  results
-                case Some(error) =>
-                  println(error)
-                  Future.failed(new Exception("failed to validate"))
-              }
+                    .map{ case (stock, value) =>
+                      (day, label, stock, MonetaryValue(value, desiredCurrency))
+                    }
+                }
+                portfolioUpdates.foreach(println)
+                Future.sequence(
+                  portfolioUpdates
+                    .map { case (day, label, stock, value) =>
+                      portfolioValueRepository.updateValue(day, label, stock, value)
+                    }
+                )
+              case Some(error) =>
+                Future.failed(new Exception(s"$day - $error"))
             }
         }
       }
+        .map(_ => s"success for ${day}")
+        .recover(t => s"failed for ${day}: ${t.getMessage}")
+    }
+
+    Future.sequence(perDay).map{ outcomes =>
+      println()
+      outcomes.foreach(println)
+    }
+  }
+
+
+  def pricesToUpdate(
+                    day: TradingDay,
+                      exchangeRates: Map[ConversionCurrencies,Double],
+                      pricesForStocks: Map[Stock,MonetaryValue],
+                      desiredCurrency: Currency
+                    )(implicit ec: ExecutionContext): Map[Stock,MonetaryValue] = {
+    val needToBeConverted = pricesForStocks.filter(_._2.currency != desiredCurrency)
+    needToBeConverted
+      .view.mapValues { price =>
+      val rate = exchangeRates.getOrElse(
+        ConversionCurrencies(price.currency, desiredCurrency),
+        throw new Exception(s"wtf? no conversion from ${price.currency} to ${desiredCurrency} on ${day}")
+      )
+      MonetaryValue(price.value * rate, desiredCurrency)
+    }
+      .toMap
   }
 
   // =====================================

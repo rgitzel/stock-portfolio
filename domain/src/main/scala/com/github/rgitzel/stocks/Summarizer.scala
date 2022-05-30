@@ -1,12 +1,12 @@
 package com.github.rgitzel.stocks
 
-import com.github.rgitzel.stocks.models.{ConversionCurrencies, Currency, Price, Stock}
+import com.github.rgitzel.stocks.models.{ConversionCurrencies, Currency, MonetaryValue, Stock}
 
 /*
  * this assumes all values are present, so anything missing is an _exception_
  */
 class Summarizer(currency: Currency) {
-  def summarize(portfolio: Map[Stock, Int], prices: Map[Stock, Price], exchangeRates: Map[ConversionCurrencies, Double]) = {
+  def summarize(portfolio: Map[Stock, Int], prices: Map[Stock, MonetaryValue], exchangeRates: Map[ConversionCurrencies, Double]) = {
     // normalize the prices
     val normalizedPrices = prices
       .view.mapValues{ originalPrice =>
@@ -15,7 +15,7 @@ class Summarizer(currency: Currency) {
         }
         else {
           val multiplier = exchangeRates.getOrElse(ConversionCurrencies(originalPrice.currency, currency), throw new Exception("no!"))
-          Price(originalPrice.value * multiplier, currency)
+          MonetaryValue(originalPrice.value * multiplier, currency)
         }
     }
 

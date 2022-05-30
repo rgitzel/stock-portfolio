@@ -15,8 +15,8 @@ class InfluxDbPricesRepository(influxDb: InfluxDbOperations)
   private val databaseName = "stocks"
   private val measurement = "price"
 
-  override def closingPrices(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[Stock,Price]] = {
-    val ts = Days.toInstant(day)
+  override def closingPrices(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[Stock,MonetaryValue]] = {
+    val ts = TradingDay.toInstant(day)
     val fluxQuery = Flux.from(databaseName)
       .range(ts.minusMillis(1), ts.plusMillis(1))
       .filter(
@@ -27,7 +27,7 @@ class InfluxDbPricesRepository(influxDb: InfluxDbOperations)
         case (Some(currencyCode), Some(symbol)) =>
           (
             Stock(symbol),
-            Price(price, Currency(currencyCode))
+            MonetaryValue(price, Currency(currencyCode))
           )
         case _ =>
           throw new MissingTagsException(measurement, timestamp, tags.keys, List("currency", "symbol"))
@@ -35,15 +35,14 @@ class InfluxDbPricesRepository(influxDb: InfluxDbOperations)
     }.map(_.toMap)
   }
 
-  override def updateClosingPrice(day: TradingDay, stock: Stock, price: Price)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def updateClosingPrice(day: TradingDay, stock: Stock, price: MonetaryValue)(implicit ec: ExecutionContext): Future[Unit] = {
     val point = Point
       .measurement(measurement)
       .addTag("currency", price.currency.code)
       .addTag("symbol", stock.symbol)
       .addField("price", price.value)
-      .time(Days.toInstant(day), WritePrecision.NS)
+      .time(TradingDay.toInstant(day), WritePrecision.NS)
 
-    influxDb.write("stocks", point).map(_ => ())
+    influxDb.write(databaseName, point).map(_ => ())
   }
-
 }
