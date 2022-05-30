@@ -12,11 +12,6 @@ case class TradingDay(month: Int, day: Int, year: Int) {
 
   def minus(days: Int) =
     plus(-days)
-
-  // TODO: this should be modelled separately as a "week"?
-  // create a list of weekly TradingDays, including this one
-  def preceedingWeeks(n: Int): List[TradingDay] =
-    1.until(n).foldLeft(List(this)){ case (days, _) => days.head.minus(7) +: days}
 }
 
 

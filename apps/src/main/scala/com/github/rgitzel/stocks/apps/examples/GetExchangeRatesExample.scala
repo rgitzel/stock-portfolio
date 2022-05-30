@@ -2,11 +2,11 @@ package com.github.rgitzel.stocks.apps.examples
 
 import akka.actor.ActorSystem
 import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbOperations}
-import com.github.rgitzel.stocks.models.TradingDay
+import com.github.rgitzel.stocks.models.{TradingDay, TradingWeek}
 import example.InfluxDbExample
 
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.global
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
 object GetExchangeRatesExample extends InfluxDbExample {
@@ -17,9 +17,19 @@ object GetExchangeRatesExample extends InfluxDbExample {
 
     val repository = new InfluxDbForexRepository(new InfluxDbOperations(influxDBClient))
 
-    val rates = repository.closingRates(TradingDay(5, 20, 2022))(global)
+    val day = TradingDay(4, 15, 2022)
 
-    Await.result(rates, Duration.Inf).foreach(println)
+    val results = for {
+      byDay <- repository.closingRates(day)
+      byWeek <- repository.closingRates(TradingWeek(day))
+    }
+    yield (byDay, byWeek)
+
+    val (daily, weekly) = Await.result(results, Duration.Inf)
+    println("day")
+    daily.foreach(println)
+    println("week")
+    weekly.foreach(println)
 
     influxDBClient.close()
     system.terminate()

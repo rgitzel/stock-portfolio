@@ -1,11 +1,13 @@
 package com.github.rgitzel.stocks.repositories
 
-import com.github.rgitzel.stocks.models.{MonetaryValue, Stock, TradingDay}
+import com.github.rgitzel.stocks.models._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent._
 
 trait PricesRepository {
   def closingPrices(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[Stock, MonetaryValue]]
+  def closingPrices(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[Stock, MonetaryValue]]
+
   def updateClosingPrice(day: TradingDay, stock: Stock, price: MonetaryValue)(implicit ec: ExecutionContext): Future[Unit]
 
   // =======================

@@ -21,29 +21,28 @@ object UpdatePortfolioValuesApp extends App {
     val forexRepository = new InfluxDbForexRepository(influxDb)
     val portfolioValueRepository = new InfluxDbPortfolioValueRepository(influxDb)
 
-    val lastDay = TradingDay(8, 6, 2021)
-    val days = lastDay.preceedingWeeks(6)
-    days.foreach(println)
+    val weeks = TradingWeek(TradingDay(5, 27, 2022)).previousWeeks(104)
+    weeks.foreach(println)
 
     val desiredCurrency = Currency("CAD")
 
     val portfolios = Map(
     )
 
-    val perDay: List[Future[String]] = days.map{ day =>
+    val perDay: List[Future[String]] = weeks.map{ week =>
       println()
-      println(s"processing ${day}")
+      println(s"processing ${week}")
 
       val data = for {
-        prices <- pricesRepository.closingPrices(day)
-        rates <- forexRepository.closingRates(day)
+        prices <- pricesRepository.closingPrices(week)
+        rates <- forexRepository.closingRates(week)
       }
       yield (rates, prices)
 
       data.flatMap { case (exchangeRates, pricesForStocks) =>
-        val convertedPrices = pricesToUpdate(day, exchangeRates, pricesForStocks, desiredCurrency)
-        pricesRepository.updateClosingPrices(day, convertedPrices)
-          .flatMap { _ =>
+        val convertedPrices = pricesToUpdate(week, exchangeRates, pricesForStocks, desiredCurrency)
+//        pricesRepository.updateClosingPrices(day, convertedPrices)
+//          .flatMap { _ =>
             val pricesInAllCurrencies = pricesForStocks ++ convertedPrices
             new Validator(desiredCurrency).allDataExistsForPortfolios(portfolios, pricesInAllCurrencies, exchangeRates) match {
               case None =>
@@ -53,23 +52,23 @@ object UpdatePortfolioValuesApp extends App {
                     .toList
                     .sortBy(_._1.symbol)
                     .map{ case (stock, value) =>
-                      (day, label, stock, MonetaryValue(value, desiredCurrency))
+                      (week, label, stock, MonetaryValue(value, desiredCurrency))
                     }
                 }
                 portfolioUpdates.foreach(println)
                 Future.sequence(
                   portfolioUpdates
-                    .map { case (day, label, stock, value) =>
-                      portfolioValueRepository.updateValue(day, label, stock, value)
+                    .map { case (week, label, stock, value) =>
+                      portfolioValueRepository.updateValue(week.lastDay, label, stock, value)
                     }
                 )
               case Some(error) =>
-                Future.failed(new Exception(s"$day - $error"))
+                Future.failed(new Exception(s"$week - $error"))
             }
-        }
+//        }
       }
-        .map(_ => s"success for ${day}")
-        .recover(t => s"failed for ${day}: ${t.getMessage}")
+        .map(_ => s"success for ${week}")
+        .recover(t => s"failed for ${week}: ${t.getMessage}")
     }
 
     Future.sequence(perDay).map{ outcomes =>
@@ -80,7 +79,7 @@ object UpdatePortfolioValuesApp extends App {
 
 
   def pricesToUpdate(
-                    day: TradingDay,
+                    week: TradingWeek,
                       exchangeRates: Map[ConversionCurrencies,Double],
                       pricesForStocks: Map[Stock,MonetaryValue],
                       desiredCurrency: Currency
@@ -90,7 +89,7 @@ object UpdatePortfolioValuesApp extends App {
       .view.mapValues { price =>
       val rate = exchangeRates.getOrElse(
         ConversionCurrencies(price.currency, desiredCurrency),
-        throw new Exception(s"wtf? no conversion from ${price.currency} to ${desiredCurrency} on ${day}")
+        throw new Exception(s"wtf? no conversion from ${price.currency} to ${desiredCurrency} for week ending ${week.lastDay}")
       )
       MonetaryValue(price.value * rate, desiredCurrency)
     }

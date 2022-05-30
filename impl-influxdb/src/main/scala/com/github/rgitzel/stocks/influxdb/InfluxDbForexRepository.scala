@@ -6,6 +6,8 @@ import com.github.rgitzel.stocks.repositories.ForexRepository
 import com.influxdb.query.dsl.Flux
 import com.influxdb.query.dsl.functions.restriction.Restrictions
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
 
 class InfluxDbForexRepository(influxdb: InfluxDbOperations)
@@ -15,8 +17,19 @@ class InfluxDbForexRepository(influxdb: InfluxDbOperations)
 
   override def closingRates(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
     val ts = TradingDay.toInstant(day)
+    runQuery(ts.minusMillis(1), ts.plusMillis(1))
+  }
+
+  override def closingRates(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
+    val ts = TradingDay.toInstant(week.lastDay)
+    runQuery(ts.minus(7, ChronoUnit.DAYS).plusMillis(1), ts.plusMillis(1))
+  }
+
+  // ===================================
+
+  private def runQuery(start: Instant, end: Instant)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
     val fluxQuery = Flux.from(databaseName)
-      .range(ts.minusMillis(1), ts.plusMillis(1))
+      .range(start, end)
       .filter(
         Restrictions.measurement().equal(measurement)
       )
@@ -29,6 +42,6 @@ class InfluxDbForexRepository(influxdb: InfluxDbOperations)
           throw new MissingTagsException(measurement, timestamp, tags.keys, List("from", "to"))
       }
     }
-    .map(_.toMap)
+      .map(_.toMap)
   }
 }

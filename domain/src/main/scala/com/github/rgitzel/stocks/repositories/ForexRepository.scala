@@ -6,4 +6,5 @@ import scala.concurrent.{ExecutionContext, Future}
 
 trait ForexRepository {
   def closingRates(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies, Double]]
+  def closingRates(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies, Double]]
 }
