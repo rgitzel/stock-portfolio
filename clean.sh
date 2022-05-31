@@ -12,13 +12,15 @@ cat "${CSV_FILE}" \
   | grep '^,[0-9]' \
   | sed 's/^,//g' \
   | sed 's/,[^,]$//g' \
+  | sed 's/1,668/1668/g' \
   | sed 's/ - Action Direct//g' \
+  | sed 's/ - Cdn//g' \
+  | sed 's/ - Cdn//g' \
   | sed 's/ - /,/g' \
   | sed 's/\.000//g' \
   | sed 's/Alphabet,Class A/KEEP-GOOGL/g' \
   | sed 's/Alphabet,Class C/KEEP-GOOG/g' \
   | sed 's/Amazon/KEEP-AMZN/g' \
-  | sed 's/Apple //g' \
   | sed 's/Apple/KEEP-AAPL/g' \
   | sed 's/Berkshire Hathaway - Class B/KEEP-BRK.B/g' \
   | sed 's/Cameco Corp/KEEP-TSE:CCO/g' \

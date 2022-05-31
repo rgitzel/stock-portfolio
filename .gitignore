@@ -5,3 +5,6 @@
 .bsp
 
 **/target
+
+transactions.csv
+transactions.txt
