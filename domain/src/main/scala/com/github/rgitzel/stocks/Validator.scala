@@ -1,10 +1,10 @@
 package com.github.rgitzel.stocks
 
-import com.github.rgitzel.stocks.models.{ConversionCurrencies, Currency, MonetaryValue, Stock}
+import com.github.rgitzel.stocks.models._
 
 class Validator(currency: Currency) {
-  def allDataExistsForPortfolio(label: String, portfolio: Map[Stock,Int], prices: Map[Stock,MonetaryValue], exchangeRates: Map[ConversionCurrencies,Double]): Option[String] = {
-    val expectedStocks = portfolio.keys.toSet
+  def allDataExistsForPortfolio(portfolio: Portfolio, prices: Map[Stock,MonetaryValue], exchangeRates: Map[ConversionCurrencies,Double]): Option[String] = {
+    val expectedStocks = portfolio.shareCountsForStocks.keys.toSet
     val givenStocks = prices.keys.toSet
     val missingStocks = expectedStocks
       .diff(givenStocks)
@@ -20,22 +20,18 @@ class Validator(currency: Currency) {
       case ("", "") =>
         None
       case _ =>
-        Some(s"portfolio ${label} missing stocks: '${missingStocks}' and/or missing conversions: '${missingExchangeRates}''")
+        Some(s"portfolio ${portfolio.name} missing stocks: '${missingStocks}' and/or missing conversions: '${missingExchangeRates}''")
     }
   }
 
-  def allDataExistsForPortfolios(portfolios: Map[String, Map[Stock,Int]], prices: Map[Stock,MonetaryValue], exchangeRates: Map[ConversionCurrencies,Double]): Option[String] = {
-    val errors = portfolios.foldLeft(List[String]()){ case (accumulatedErrors, (label, portfolio)) =>
-      allDataExistsForPortfolio(label, portfolio, prices, exchangeRates) match {
+  def problemsWithRequiredDataForPortfolios(portfolios: List[Portfolio], prices: Map[Stock,MonetaryValue], exchangeRates: Map[ConversionCurrencies,Double]): List[String] = {
+    portfolios.foldLeft(List[String]()){ case (accumulatedErrors, portfolio) =>
+      allDataExistsForPortfolio(portfolio, prices, exchangeRates) match {
         case Some(error) =>
           accumulatedErrors :+ error
         case _ =>
           accumulatedErrors
       }
-    }
-    errors match {
-      case Nil => None
-      case _ => Some(errors.mkString(", "))
     }
   }
 }

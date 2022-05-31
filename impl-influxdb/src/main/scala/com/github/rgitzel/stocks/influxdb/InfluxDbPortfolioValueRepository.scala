@@ -15,10 +15,10 @@ class InfluxDbPortfolioValueRepository(influxDb: InfluxDbOperations)
   private val databaseName = "stocks"
   private val measurement = "portfolio"
 
-  override def updateValue(day: TradingDay, portfolioLabel: String, stock: Stock, value: MonetaryValue)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def updateValue(day: TradingDay, portfolioName: PortfolioName, stock: Stock, value: MonetaryValue)(implicit ec: ExecutionContext): Future[Unit] = {
     val point = Point
       .measurement(measurement)
-      .addTag("name", portfolioLabel)
+      .addTag("name", portfolioName.s)
       .addTag("currency", value.currency.code)
       .addTag("symbol", stock.symbol)
       .addField("value", value.value)

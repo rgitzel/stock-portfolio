@@ -3,7 +3,7 @@ package com.github.rgitzel.stocks.apps
 import akka.actor.ActorSystem
 import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbOperations, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
-import com.github.rgitzel.stocks.{Summarizer, Validator}
+import com.github.rgitzel.stocks.{PortfolioValuator, Validator}
 import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
 
 import java.net.URL
@@ -26,10 +26,10 @@ object UpdatePortfolioValuesApp extends App {
 
     val desiredCurrency = Currency("CAD")
 
-    val portfolios = Map(
+    val portfolios = List(
     )
 
-    val perDay: List[Future[String]] = weeks.map{ week =>
+    val resultsByWeek: List[Future[String]] = weeks.map{ week =>
       println()
       println(s"processing ${week}")
 
@@ -41,37 +41,41 @@ object UpdatePortfolioValuesApp extends App {
 
       data.flatMap { case (exchangeRates, pricesForStocks) =>
         val convertedPrices = pricesToUpdate(week, exchangeRates, pricesForStocks, desiredCurrency)
+// do we really need to _store_ the converted prices? pretty easy to convert on the fly...
 //        pricesRepository.updateClosingPrices(day, convertedPrices)
 //          .flatMap { _ =>
-            val pricesInAllCurrencies = pricesForStocks ++ convertedPrices
-            new Validator(desiredCurrency).allDataExistsForPortfolios(portfolios, pricesInAllCurrencies, exchangeRates) match {
-              case None =>
-                val portfolioUpdates = portfolios.flatMap { case (label, portfolio) =>
-                  new Summarizer(desiredCurrency)
-                    .summarize(portfolio, pricesInAllCurrencies, exchangeRates)
-                    .toList
-                    .sortBy(_._1.symbol)
-                    .map{ case (stock, value) =>
-                      (week, label, stock, MonetaryValue(value, desiredCurrency))
-                    }
-                }
-                portfolioUpdates.foreach(println)
-                Future.sequence(
-                  portfolioUpdates
-                    .map { case (week, label, stock, value) =>
-                      portfolioValueRepository.updateValue(week.lastDay, label, stock, value)
-                    }
-                )
-              case Some(error) =>
-                Future.failed(new Exception(s"$week - $error"))
+        val pricesInAllCurrencies = pricesForStocks ++ convertedPrices
+        new Validator(desiredCurrency).problemsWithRequiredDataForPortfolios(portfolios, pricesInAllCurrencies, exchangeRates) match {
+          case Nil =>
+            val portfolioValuations = portfolios.map { portfolio =>
+              new PortfolioValuator(desiredCurrency).valuate(portfolio, pricesInAllCurrencies, exchangeRates)
             }
+            // TODO: this should go in the repository class
+            val combinedPortfolioUpdates = portfolioValuations.flatMap { portfolioValuation =>
+              portfolioValuation.valuesForStocks.toList
+                .sortBy(_._1.symbol)
+                .map{ case (stock, value) =>
+                  (week, portfolioValuation.name, stock, MonetaryValue(value, desiredCurrency))
+                }
+            }
+            combinedPortfolioUpdates.foreach(println)
+            Future.sequence(
+              combinedPortfolioUpdates
+                .map { case (week, portfolioName, stock, value) =>
+                  portfolioValueRepository.updateValue(week.lastDay, portfolioName, stock, value)
+                }
+            )
+          case errors =>
+            // TODO: better combination of errors
+            Future.failed(new Exception(s"$week - ${errors.mkString(", ")}"))
+        }
 //        }
       }
         .map(_ => s"success for ${week}")
         .recover(t => s"failed for ${week}: ${t.getMessage}")
     }
 
-    Future.sequence(perDay).map{ outcomes =>
+    Future.sequence(resultsByWeek).map{ outcomes =>
       println()
       outcomes.foreach(println)
     }
