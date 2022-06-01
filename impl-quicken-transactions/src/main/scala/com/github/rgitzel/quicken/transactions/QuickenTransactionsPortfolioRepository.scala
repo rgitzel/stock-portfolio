@@ -20,7 +20,7 @@ class QuickenTransactionsPortfolioRepository(file: File) extends PortfolioReposi
                 parsedLines.map(_.get)
                   .groupBy(_._1)
                   .map { case (portfolioName, parsed) =>
-                    PortfolioJournal(portfolioName, parsed.map(_._3).sortBy(_.tradingDay))
+                    PortfolioJournal(portfolioName, parsed.map(_._2).sortBy(_.tradingDay))
                   }
                   .toList
                   .sortBy(_.name)

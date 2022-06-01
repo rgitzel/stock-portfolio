@@ -1,6 +1,7 @@
 package com.github.rgitzel.stocks.repositories
 
 import com.github.rgitzel.stocks.models._
+import com.github.rgitzel.stocks.money.ConversionCurrencies
 
 import scala.concurrent.{ExecutionContext, Future}
 

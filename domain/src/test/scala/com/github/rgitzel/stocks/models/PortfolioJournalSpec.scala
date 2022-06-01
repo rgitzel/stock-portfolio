@@ -1,5 +1,6 @@
 package com.github.rgitzel.stocks.models
 
+import com.github.rgitzel.stocks.money.Currency
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers._
 
@@ -10,13 +11,15 @@ class PortfolioJournalSpec extends AnyFlatSpecLike {
   val stockB = Stock("B")
   val stockC = Stock("C")
 
+  val currency = Currency("x")
+  
   // ==== one stock, two mirror transactions ===================
 
   val journalWithOneStockOnlyTwoTransactions = PortfolioJournal(
     name,
     List(
-      Transaction(TradingDay(9, 12, 2017), stockA, StockPurchased(400)),
-      Transaction(TradingDay(10, 13, 2017), stockA, StockSold(400))
+      Transaction(TradingDay(9, 12, 2017), stockA, currency, StockPurchased(400)),
+      Transaction(TradingDay(10, 13, 2017), stockA, currency, StockSold(400))
     )
   )
 
@@ -26,7 +29,7 @@ class PortfolioJournalSpec extends AnyFlatSpecLike {
   )
     .foreach{ case (reason, day, expectedCounts) =>
       it should s"be correct ${reason} (just one stock and two transactions)" in {
-        journalWithOneStockOnlyTwoTransactions.portfolioAsOf(day) should be (Portfolio(name, expectedCounts))
+        journalWithOneStockOnlyTwoTransactions.portfolioAsOf(day) should be (Portfolio(name, Map(currency -> expectedCounts)))
       }
     }
 
@@ -35,12 +38,12 @@ class PortfolioJournalSpec extends AnyFlatSpecLike {
   val journalWithOneStock = PortfolioJournal(
     name,
     List(
-      Transaction(TradingDay(9, 12, 2017), stockA, StockPurchased(400)),
-      Transaction(TradingDay(10, 13, 2017), stockA, StockPurchased(100)),
-      Transaction(TradingDay(3, 29, 2019), stockA, StockSold(300)),
-      Transaction(TradingDay(12, 1, 2021), stockA, StockPurchased(200)),
-      Transaction(TradingDay(12, 15, 2021), stockA, StockSplit(3)),
-      Transaction(TradingDay(3, 29, 2022), stockA, StockSold(300)),
+      Transaction(TradingDay(9, 12, 2017), stockA, currency, StockPurchased(400)),
+      Transaction(TradingDay(10, 13, 2017), stockA, currency, StockPurchased(100)),
+      Transaction(TradingDay(3, 29, 2019), stockA, currency, StockSold(300)),
+      Transaction(TradingDay(12, 1, 2021), stockA, currency, StockPurchased(200)),
+      Transaction(TradingDay(12, 15, 2021), stockA, currency, StockSplit(3)),
+      Transaction(TradingDay(3, 29, 2022), stockA, currency, StockSold(300)),
     )
   )
 
@@ -55,7 +58,7 @@ class PortfolioJournalSpec extends AnyFlatSpecLike {
   )
     .foreach{ case (reason, day, expectedCounts) =>
       it should s"be correct ${reason} (just one stock)" in {
-        journalWithOneStock.portfolioAsOf(day) should be (Portfolio(name, expectedCounts))
+        journalWithOneStock.portfolioAsOf(day) should be (Portfolio(name, Map(currency -> expectedCounts)))
       }
     }
 
@@ -64,12 +67,12 @@ class PortfolioJournalSpec extends AnyFlatSpecLike {
   val journalWithMultipleStocks = PortfolioJournal(
     name,
     List(
-      Transaction(TradingDay(9, 12, 2017), stockA, StockPurchased(400)),
-      Transaction(TradingDay(10, 13, 2017), stockB, StockPurchased(100)),
-      Transaction(TradingDay(3, 29, 2019), stockA, StockSold(300)),
-      Transaction(TradingDay(12, 1, 2021), stockC, StockPurchased(200)),
-      Transaction(TradingDay(12, 15, 2021), stockB, StockSplit(3)),
-      Transaction(TradingDay(3, 29, 2022), stockB, StockSold(300)),
+      Transaction(TradingDay(9, 12, 2017), stockA, currency, StockPurchased(400)),
+      Transaction(TradingDay(10, 13, 2017), stockB, currency, StockPurchased(100)),
+      Transaction(TradingDay(3, 29, 2019), stockA, currency, StockSold(300)),
+      Transaction(TradingDay(12, 1, 2021), stockC, currency, StockPurchased(200)),
+      Transaction(TradingDay(12, 15, 2021), stockB, currency, StockSplit(3)),
+      Transaction(TradingDay(3, 29, 2022), stockB, currency, StockSold(300)),
     )
   )
 
@@ -84,7 +87,7 @@ class PortfolioJournalSpec extends AnyFlatSpecLike {
   )
     .foreach{ case (reason, day, expectedCounts) =>
       it should s"be correct ${reason} (multiple stocks)" in {
-        journalWithMultipleStocks.portfolioAsOf(day) should be (Portfolio(name, expectedCounts))
+        journalWithMultipleStocks.portfolioAsOf(day) should be (Portfolio(name, Map(currency -> expectedCounts)))
       }
     }
 }

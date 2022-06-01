@@ -4,9 +4,11 @@ final case class PortfolioJournal(name: PortfolioName, transactions: List[Transa
   def portfolioAsOf(day: TradingDay): Portfolio = {
     val shareCountsForStocks = transactions
       .filter(_.tradingDay < day)
-      .groupBy(_.stock)
-      .view.mapValues{ transactions =>
-        transactions.map(_.details).foldLeft(0){ case (numberOfShares, details) =>
+      .groupBy(_.currency)
+      .view.mapValues { x =>
+      x.groupBy(_.stock)
+        .view.mapValues { transactions =>
+        transactions.map(_.action).foldLeft(0) { case (numberOfShares, details) =>
           details match {
             case StockPurchased(shareCount) =>
               numberOfShares + shareCount
@@ -17,8 +19,9 @@ final case class PortfolioJournal(name: PortfolioName, transactions: List[Transa
           }
         }
       }
-      .toMap
-      .filter(_._2 > 0)
+        .filter(_._2 > 0)
+        .toMap
+    }.toMap
 
     Portfolio(name, shareCountsForStocks)
   }

@@ -5,7 +5,7 @@ import org.scalatest.TryValues
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers._
 
-class QuickenTransactionDetailsParserTest extends AnyFlatSpecLike with TryValues {
+class QuickenActionParserTest extends AnyFlatSpecLike with TryValues {
   import QuickenTransactionDetailsParser._
   
   "apply" should "parse a buy correctly" in {
@@ -13,7 +13,8 @@ class QuickenTransactionDetailsParserTest extends AnyFlatSpecLike with TryValues
   }
 
   it should "parse a sale correctly" in {
-    fromStrings("Sold", "5").success.value should be (StockSold(5))
+    // note that the value is _negative_ in the Quicken file
+    fromStrings("Sold", "-5").success.value should be (StockSold(5))
   }
 
   it should "parse a split correctly" in {

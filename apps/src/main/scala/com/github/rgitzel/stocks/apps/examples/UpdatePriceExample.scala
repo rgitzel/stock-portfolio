@@ -1,8 +1,9 @@
 package com.github.rgitzel.stocks.apps.examples
 
 import akka.actor.ActorSystem
-import com.github.rgitzel.stocks.influxdb.{InfluxDbPricesRepository, InfluxDbOperations}
+import com.github.rgitzel.stocks.influxdb.{InfluxDbOperations, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
+import com.github.rgitzel.stocks.money.{Currency, MonetaryValue}
 import example.InfluxDbExample
 
 import scala.concurrent.Await

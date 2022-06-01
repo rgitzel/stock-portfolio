@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import com.github.rgitzel.quicken.transactions.QuickenTransactionsPortfolioRepository
 import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbOperations, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
-import com.github.rgitzel.stocks.{PortfolioValuator, Validator}
+import com.github.rgitzel.stocks.money.{ConversionCurrencies, Currency, MonetaryValue, MoneyConverter}
 import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
 
 import java.io.File
@@ -22,59 +22,38 @@ object UpdatePortfolioValuesApp extends App {
     val pricesRepository = new InfluxDbPricesRepository(influxDb)
     val forexRepository = new InfluxDbForexRepository(influxDb)
     val portfolioValueRepository = new InfluxDbPortfolioValueRepository(influxDb)
+    val transactionsPortfolioRepository = new QuickenTransactionsPortfolioRepository(new File("./transactions.txt"))
 
-    val weeks = TradingWeek(TradingDay(5, 27, 2022)).previousWeeks(5 * 52)
+    val weeks = TradingWeek(TradingDay(5, 27, 2022)).previousWeeks(11 * 52)
     weeks.foreach(println)
 
     val desiredCurrency = Currency("CAD")
 
-    new QuickenTransactionsPortfolioRepository(new File("./transactions.txt"))
-      .portfolioTransactions()
-      .flatMap { case journals =>
-
+    transactionsPortfolioRepository.portfolioTransactions()
+      .flatMap { journals =>
         val resultsByWeek: List[Future[String]] = weeks.map { week =>
           println()
           println(s"processing ${week}")
 
-          val data = for {
-            prices <- pricesRepository.closingPrices(week)
-            rates <- forexRepository.closingRates(week)
-          }
-          yield (rates, prices)
-
           val portfolios = journals.map(_.portfolioAsOf(week.lastDay))
 
-          data.flatMap { case (exchangeRates, pricesForStocks) =>
-            val convertedPrices = pricesToUpdate(week, exchangeRates, pricesForStocks, desiredCurrency)
-            // do we really need to _store_ the converted prices? pretty easy to convert on the fly...
-            //        pricesRepository.updateClosingPrices(day, convertedPrices)
-            //          .flatMap { _ =>
-            val pricesInAllCurrencies = pricesForStocks ++ convertedPrices
-            new Validator(desiredCurrency).problemsWithRequiredDataForPortfolios(portfolios, pricesInAllCurrencies, exchangeRates) match {
-              case Nil =>
-                val portfolioValuations = portfolios.map { portfolio =>
-                  new PortfolioValuator(desiredCurrency).valuate(portfolio, pricesInAllCurrencies, exchangeRates)
-                }
-                // TODO: this should go in the repository class
-                val combinedPortfolioUpdates = portfolioValuations.flatMap { portfolioValuation =>
-                  portfolioValuation.valuesForStocks.toList
-                    .sortBy(_._1.symbol)
-                    .map { case (stock, value) =>
-                      (week, portfolioValuation.name, stock, MonetaryValue(value, desiredCurrency))
-                    }
-                }
-                combinedPortfolioUpdates.foreach(println)
-                Future.sequence(
-                  combinedPortfolioUpdates
-                    .map { case (week, portfolioName, stock, value) =>
-                      portfolioValueRepository.updateValue(week.lastDay, portfolioName, stock, value)
-                    }
-                )
-              case errors =>
-                // TODO: better combination of errors
-                Future.failed(new Exception(s"$week - ${errors.mkString(", ")}"))
+          pricesRepository.closingPrices(week).flatMap{ retrievedPricesForStocks =>
+
+            forexRepository.closingRates(week.lastDay).flatMap{ exchangeRatesx =>
+              val moneyConverter = new MoneyConverter(exchangeRatesx)
+
+              // somehow need a better way to account for having Apple in both currencies
+              val pricesForStocks = retrievedPricesForStocks ++ appleKludge(moneyConverter, retrievedPricesForStocks)
+
+              Portfolio.checkForMissingPrices(portfolios, pricesForStocks) match {
+                case Nil =>
+                  val portfolioValuations = portfolios.map(Portfolio.valuate(_, pricesForStocks))
+                  portfolioValueRepository.updateValues(week, portfolioValuations)
+                case errors =>
+                  // TODO: better combination of errors
+                  Future.failed(new Exception(s"$week - ${errors.mkString(", ")}"))
+              }
             }
-            //        }
           }
             .map(_ => s"success for ${week}")
             .recover(t => s"failed for ${week}: ${t.getMessage}")
@@ -85,6 +64,17 @@ object UpdatePortfolioValuesApp extends App {
           outcomes.foreach(println)
         }
       }
+  }
+
+  def appleKludge(moneyConverter: MoneyConverter, retrievedPricesForStocks: Map[Stock,MonetaryValue]) = {
+    val apple = Stock("AAPL")
+    val fakeCanadianApple = Stock("AAPLCAD")
+
+    retrievedPricesForStocks.get(apple).flatMap { usPrice =>
+      moneyConverter.convert(usPrice, Currency("CAD")).map { cadPrice =>
+        Map(fakeCanadianApple -> cadPrice)
+      }
+    }.getOrElse(Map())
   }
 
   def pricesToUpdate(

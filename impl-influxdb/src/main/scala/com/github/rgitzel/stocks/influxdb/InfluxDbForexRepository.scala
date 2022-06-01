@@ -2,6 +2,7 @@ package com.github.rgitzel.stocks.influxdb
 
 import com.github.rgitzel.influxdb.MissingTagsException
 import com.github.rgitzel.stocks.models._
+import com.github.rgitzel.stocks.money.{ConversionCurrencies, Currency}
 import com.github.rgitzel.stocks.repositories.ForexRepository
 import com.influxdb.query.dsl.Flux
 import com.influxdb.query.dsl.functions.restriction.Restrictions

@@ -1,17 +1,18 @@
 package com.github.rgitzel.quicken.transactions.parsing
 
-import com.github.rgitzel.stocks.models.{StockPurchased, StockSold, StockSplit, TransactionDetails}
+import com.github.rgitzel.stocks.models.{StockPurchased, StockSold, StockSplit, Action}
 
 import scala.util.{Failure, Success, Try}
 
 object QuickenTransactionDetailsParser {
   // e.g. "Bought" "100"
-  def fromStrings(action: String, value: String): Try[TransactionDetails] = {
+  def fromStrings(action: String, value: String): Try[Action] = {
     action match {
       case "Bought" =>
         asInt(value).map(StockPurchased)
       case "Sold" =>
-        asInt(value).map(StockSold)
+        // Quicken makes the value _negative_, but we want it positive
+        asInt(value).map(count => StockSold(-count))
       case "StkSplit" =>
         value.split(":", 2).toList match {
           case List(s1, s2) =>

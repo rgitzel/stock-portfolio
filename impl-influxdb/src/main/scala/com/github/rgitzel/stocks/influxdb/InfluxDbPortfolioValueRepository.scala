@@ -2,6 +2,7 @@ package com.github.rgitzel.stocks.influxdb
 
 import com.github.rgitzel.influxdb.MissingTagsException
 import com.github.rgitzel.stocks.models._
+import com.github.rgitzel.stocks.money.MonetaryValue
 import com.github.rgitzel.stocks.repositories.{PortfolioValueRepository, PricesRepository}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
