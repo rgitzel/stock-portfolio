@@ -13,13 +13,11 @@ object QuickenTransactionParser {
       case List(portfolio, currency, symbol, day, action, amount) =>
         (TradingDayParser.fromString(day), QuickenTransactionDetailsParser.fromStrings(action, amount)) match {
           case (Success(tradingDay), Success(details)) =>
-            // TODO: need better way to handle having Apple in two currencies
-            val appleKludgeSymbol = if((symbol == "AAPL") & (currency == "CAD")) "AAPLCAD" else symbol
             Success((
               PortfolioName(portfolio),
               models.Transaction(
                 tradingDay,
-                Stock(appleKludgeSymbol),
+                Stock(symbol),
                 Currency(currency),
                 details
               )

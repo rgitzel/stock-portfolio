@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers._
 
 import java.io.File
 
-class QuickenTransactionsPortfolioRepositorySpec extends AsyncFlatSpec with ScalaFutures {
+class QuickenPortfolioJournalsRepositorySpec extends AsyncFlatSpec with ScalaFutures {
   "portfolioTransactions" should "extract single portfolio with only one transaction" in {
     verifyFromValidFile(
       "single-portfolio-single-transaction",
@@ -72,6 +72,6 @@ class QuickenTransactionsPortfolioRepositorySpec extends AsyncFlatSpec with Scal
 
   def verifyFromValidFile(name: String, portfolios: List[PortfolioJournal]) = {
     val file = new File(this.getClass.getClassLoader.getResource(s"transaction-files/${name}.txt").toURI)
-    new QuickenTransactionsPortfolioRepository(file).portfolioTransactions().futureValue should be (portfolios)
+    new QuickenPortfolioJournalsRepository(file).portfolioJournals().futureValue should be (portfolios)
   }
 }

@@ -1,6 +1,10 @@
 package com.github.rgitzel.stocks.models
 
+import com.github.rgitzel.stocks.money.Currency
+
 final case class PortfolioJournal(name: PortfolioName, transactions: List[Transaction]) {
+  val currencies: List[Currency] = transactions.map(_.currency).distinct
+
   def portfolioAsOf(day: TradingDay): Portfolio = {
     val shareCountsForStocks = transactions
       .filter(_.tradingDay < day)

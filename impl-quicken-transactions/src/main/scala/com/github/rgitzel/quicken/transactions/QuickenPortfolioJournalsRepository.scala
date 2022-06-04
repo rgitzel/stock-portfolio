@@ -2,15 +2,15 @@ package com.github.rgitzel.quicken.transactions
 
 import com.github.rgitzel.quicken.transactions.parsing.QuickenTransactionParser
 import com.github.rgitzel.stocks.models._
-import com.github.rgitzel.stocks.repositories.PortfolioRepository
+import com.github.rgitzel.stocks.repositories.PortfolioJournalsRepository
 
 import java.io.File
 import scala.concurrent._
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-class QuickenTransactionsPortfolioRepository(file: File) extends PortfolioRepository {
-  override def portfolioTransactions()(implicit ec: ExecutionContext): Future[List[PortfolioJournal]] =
+class QuickenPortfolioJournalsRepository(file: File) extends PortfolioJournalsRepository {
+  override def portfolioJournals()(implicit ec: ExecutionContext): Future[List[PortfolioJournal]] =
     Future.fromTry(
       fileLines(file)
         .flatMap{ lines =>

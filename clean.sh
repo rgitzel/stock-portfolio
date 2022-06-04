@@ -19,7 +19,7 @@ cat "${CSV_FILE}" \
   | sed 's/Alphabet,Class A/KEEP-GOOGL/g' \
   | sed 's/Alphabet,Class C/KEEP-GOOG/g' \
   | sed 's/Amazon/KEEP-AMZN/g' \
-  | sed 's/Apple,Cdn/KEEP-AAPLCAD/g' \
+  | sed 's/Apple,Cdn/KEEP-AAPL/g' \
   | sed 's/Apple/KEEP-AAPL/g' \
   | sed 's/Berkshire Hathaway,Class B/KEEP-BRK.B/g' \
   | sed 's/Cameco Corp/KEEP-TSE:CCO/g' \

@@ -4,6 +4,6 @@ import com.github.rgitzel.stocks.models._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait PortfolioRepository {
-  def portfolioTransactions()(implicit ec: ExecutionContext): Future[List[PortfolioJournal]]
+trait PortfolioJournalsRepository {
+  def portfolioJournals()(implicit ec: ExecutionContext): Future[List[PortfolioJournal]]
 }

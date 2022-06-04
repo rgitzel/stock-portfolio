@@ -1,7 +1,7 @@
 package com.github.rgitzel.stocks.apps
 
 import akka.actor.ActorSystem
-import com.github.rgitzel.quicken.transactions.QuickenTransactionsPortfolioRepository
+import com.github.rgitzel.quicken.transactions.QuickenPortfolioJournalsRepository
 import com.github.rgitzel.stocks.models._
 import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
 
@@ -19,8 +19,8 @@ object GetPortfolioApp extends App {
     val weeks = TradingWeek(TradingDay(10, 31, 2011)).previousWeeks(1)
     weeks.foreach(println)
 
-    new QuickenTransactionsPortfolioRepository(new File("./transactions.txt"))
-      .portfolioTransactions()
+    new QuickenPortfolioJournalsRepository(new File("./transactions.txt"))
+      .portfolioJournals()
       .foreach { case journals =>
         weeks.map { week =>
           println()

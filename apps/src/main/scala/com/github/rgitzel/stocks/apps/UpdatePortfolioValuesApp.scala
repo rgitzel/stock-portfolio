@@ -1,7 +1,7 @@
 package com.github.rgitzel.stocks.apps
 
 import akka.actor.ActorSystem
-import com.github.rgitzel.quicken.transactions.QuickenTransactionsPortfolioRepository
+import com.github.rgitzel.quicken.transactions.QuickenPortfolioJournalsRepository
 import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbOperations, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money.{ConversionCurrencies, Currency, MonetaryValue, MoneyConverter}
@@ -22,15 +22,18 @@ object UpdatePortfolioValuesApp extends App {
     val pricesRepository = new InfluxDbPricesRepository(influxDb)
     val forexRepository = new InfluxDbForexRepository(influxDb)
     val portfolioValueRepository = new InfluxDbPortfolioValueRepository(influxDb)
-    val transactionsPortfolioRepository = new QuickenTransactionsPortfolioRepository(new File("./transactions.txt"))
+    val transactionsPortfolioRepository = new QuickenPortfolioJournalsRepository(new File("./transactions.txt"))
 
-    val weeks = TradingWeek(TradingDay(5, 27, 2022)).previousWeeks(11 * 52)
+    val weeks = TradingWeek(TradingDay(6, 3, 2022)).previousWeeks(7 * 52)
     weeks.foreach(println)
 
     val desiredCurrency = Currency("CAD")
 
-    transactionsPortfolioRepository.portfolioTransactions()
+    transactionsPortfolioRepository.portfolioJournals()
       .flatMap { journals =>
+
+        val currenciesAcrossAllPortfolios = (journals.flatMap(_.currencies) :+ desiredCurrency).distinct
+
         val resultsByWeek: List[Future[String]] = weeks.map { week =>
           println()
           println(s"processing ${week}")
@@ -39,15 +42,19 @@ object UpdatePortfolioValuesApp extends App {
 
           pricesRepository.closingPrices(week).flatMap{ retrievedPricesForStocks =>
 
-            forexRepository.closingRates(week.lastDay).flatMap{ exchangeRatesx =>
-              val moneyConverter = new MoneyConverter(exchangeRatesx)
+            forexRepository.closingRates(week.lastDay).flatMap{ exchangeRates =>
+              val moneyConverter = new MoneyConverter(exchangeRates)
 
-              // somehow need a better way to account for having Apple in both currencies
-              val pricesForStocks = retrievedPricesForStocks ++ appleKludge(moneyConverter, retrievedPricesForStocks)
+              // we want the closing price of each stock in _all_ currencies
+              val closingPrices = retrievedPricesForStocks.flatMap{ case (stock, publishedMonetaryValue) =>
+                currenciesAcrossAllPortfolios.flatMap{ currency =>
+                  moneyConverter.convert(publishedMonetaryValue, currency).map(ClosingPrice(stock, _))
+                }
+              }.toList
 
-              Portfolio.checkForMissingPrices(portfolios, pricesForStocks) match {
+              Portfolio.checkForMissingPrices(portfolios, closingPrices) match {
                 case Nil =>
-                  val portfolioValuations = portfolios.map(Portfolio.valuate(_, pricesForStocks))
+                  val portfolioValuations = portfolios.map(PortfolioValuation(_, closingPrices))
                   portfolioValueRepository.updateValues(week, portfolioValuations)
                 case errors =>
                   // TODO: better combination of errors
@@ -64,35 +71,6 @@ object UpdatePortfolioValuesApp extends App {
           outcomes.foreach(println)
         }
       }
-  }
-
-  def appleKludge(moneyConverter: MoneyConverter, retrievedPricesForStocks: Map[Stock,MonetaryValue]) = {
-    val apple = Stock("AAPL")
-    val fakeCanadianApple = Stock("AAPLCAD")
-
-    retrievedPricesForStocks.get(apple).flatMap { usPrice =>
-      moneyConverter.convert(usPrice, Currency("CAD")).map { cadPrice =>
-        Map(fakeCanadianApple -> cadPrice)
-      }
-    }.getOrElse(Map())
-  }
-
-  def pricesToUpdate(
-                    week: TradingWeek,
-                      exchangeRates: Map[ConversionCurrencies,Double],
-                      pricesForStocks: Map[Stock,MonetaryValue],
-                      desiredCurrency: Currency
-                    )(implicit ec: ExecutionContext): Map[Stock,MonetaryValue] = {
-    val needToBeConverted = pricesForStocks.filter(_._2.currency != desiredCurrency)
-    needToBeConverted
-      .view.mapValues { price =>
-      val rate = exchangeRates.getOrElse(
-        ConversionCurrencies(price.currency, desiredCurrency),
-        throw new Exception(s"wtf? no conversion from ${price.currency} to ${desiredCurrency} for week ending ${week.lastDay}")
-      )
-      MonetaryValue(price.value * rate, desiredCurrency)
-    }
-      .toMap
   }
 
   // =====================================
