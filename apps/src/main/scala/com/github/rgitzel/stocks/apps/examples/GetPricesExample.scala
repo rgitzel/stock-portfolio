@@ -23,8 +23,8 @@ object GetPricesExample extends InfluxDbExample {
 //    val day = TradingDay(12, 24, 2021)
     val day = TradingDay(5, 27, 2022)
 
-    val f = repository.closingPrices(day).flatMap{ daily =>
-      repository.closingPrices(TradingWeek(day)).map{ weekly =>
+    val f = repository.dailyClosingPrices(day).flatMap{ daily =>
+      repository.weeklyClosingPrices(TradingWeek(day)).map{ weekly =>
         println(s"day (${daily.size})")
         daily.toList.sortBy(_._1.symbol).foreach(println)
         println(s"week (${weekly.size})")

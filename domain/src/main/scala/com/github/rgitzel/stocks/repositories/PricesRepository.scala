@@ -6,8 +6,8 @@ import com.github.rgitzel.stocks.money.MonetaryValue
 import scala.concurrent._
 
 trait PricesRepository {
-  def closingPrices(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[Stock, MonetaryValue]]
-  def closingPrices(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[Stock, MonetaryValue]]
+  def dailyClosingPrices(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[Stock, MonetaryValue]]
+  def weeklyClosingPrices(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[Stock, MonetaryValue]]
 
   def updateClosingPrice(day: TradingDay, stock: Stock, price: MonetaryValue)(implicit ec: ExecutionContext): Future[Unit]
 

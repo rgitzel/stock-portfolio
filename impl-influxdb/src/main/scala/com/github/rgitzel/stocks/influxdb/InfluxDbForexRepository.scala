@@ -16,12 +16,12 @@ class InfluxDbForexRepository(influxdb: InfluxDbOperations)
   private val databaseName = "stocks"
   private val measurement = "forex"
 
-  override def closingRates(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
+  override def dailyClosingRates(day: TradingDay)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
     val ts = TradingDay.toInstant(day)
     runQuery(ts.minusMillis(1), ts.plusMillis(1))
   }
 
-  override def closingRates(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
+  override def weeklyClosingRates(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
     val ts = TradingDay.toInstant(week.lastDay)
     runQuery(ts.minus(7, ChronoUnit.DAYS).plusMillis(1), ts.plusMillis(1))
   }

@@ -20,8 +20,8 @@ object GetExchangeRatesExample extends InfluxDbExample {
     val day = TradingDay(4, 15, 2022)
 
     val results = for {
-      byDay <- repository.closingRates(day)
-      byWeek <- repository.closingRates(TradingWeek(day))
+      byDay <- repository.dailyClosingRates(day)
+      byWeek <- repository.weeklyClosingRates(TradingWeek(day))
     }
     yield (byDay, byWeek)
 

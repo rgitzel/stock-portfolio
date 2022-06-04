@@ -5,6 +5,7 @@ import com.github.rgitzel.quicken.transactions.QuickenPortfolioJournalsRepositor
 import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbOperations, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money.{ConversionCurrencies, Currency, MonetaryValue, MoneyConverter}
+import com.github.rgitzel.stocks.repositories.PortfolioValueRepository
 import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
 
 import java.io.File
@@ -24,53 +25,69 @@ object UpdatePortfolioValuesApp extends App {
     val portfolioValueRepository = new InfluxDbPortfolioValueRepository(influxDb)
     val transactionsPortfolioRepository = new QuickenPortfolioJournalsRepository(new File("./transactions.txt"))
 
-    val weeks = TradingWeek(TradingDay(6, 3, 2022)).previousWeeks(7 * 52)
-    weeks.foreach(println)
-
     val desiredCurrency = Currency("CAD")
 
-    transactionsPortfolioRepository.portfolioJournals()
-      .flatMap { journals =>
+    val weeks = TradingWeek(TradingDay(6, 3, 2022)).previousWeeks(7 * 52)
 
-        val currenciesAcrossAllPortfolios = (journals.flatMap(_.currencies) :+ desiredCurrency).distinct
+    transactionsPortfolioRepository.portfolioJournals().flatMap { journals =>
+      val currenciesAcrossAllPortfolios = (journals.flatMap(_.currencies) :+ desiredCurrency).distinct
 
-        val resultsByWeek: List[Future[String]] = weeks.map { week =>
-          println()
-          println(s"processing ${week}")
+      // TODO: better than this fold-left to accumulate a list of records to write to influx
+      val resultsByWeek: List[Future[String]] = weeks.map { week =>
+        println()
+        println(s"processing ${week}")
 
-          val portfolios = journals.map(_.portfolioAsOf(week.lastDay))
+        val portfoliosForThisWeek = journals.map(_.portfolioAsOf(week.lastDay))
 
-          pricesRepository.closingPrices(week).flatMap{ retrievedPricesForStocks =>
-
-            forexRepository.closingRates(week.lastDay).flatMap{ exchangeRates =>
-              val moneyConverter = new MoneyConverter(exchangeRates)
-
-              // we want the closing price of each stock in _all_ currencies
-              val closingPrices = retrievedPricesForStocks.flatMap{ case (stock, publishedMonetaryValue) =>
-                currenciesAcrossAllPortfolios.flatMap{ currency =>
-                  moneyConverter.convert(publishedMonetaryValue, currency).map(ClosingPrice(stock, _))
-                }
-              }.toList
-
-              Portfolio.checkForMissingPrices(portfolios, closingPrices) match {
-                case Nil =>
-                  val portfolioValuations = portfolios.map(PortfolioValuation(_, closingPrices))
-                  portfolioValueRepository.updateValues(week, portfolioValuations)
-                case errors =>
-                  // TODO: better combination of errors
-                  Future.failed(new Exception(s"$week - ${errors.mkString(", ")}"))
-              }
-            }
+        forexRepository.weeklyClosingRates(week).flatMap { exchangeRatesForThisWeek =>
+          pricesRepository.weeklyClosingPrices(week).flatMap { pricesForStocksThisWeek =>
+            processThisWeek(
+              week,
+              exchangeRatesForThisWeek,
+              pricesForStocksThisWeek,
+              portfoliosForThisWeek,
+              currenciesAcrossAllPortfolios,
+              portfolioValueRepository
+            )
           }
-            .map(_ => s"success for ${week}")
-            .recover(t => s"failed for ${week}: ${t.getMessage}")
         }
-
-        Future.sequence(resultsByWeek).map { outcomes =>
-          println()
-          outcomes.foreach(println)
-        }
+          .map(_ => s"success for ${week}")
+          .recover(t => s"failed for ${week}: ${t.getMessage}")
       }
+
+      Future.sequence(resultsByWeek).map { outcomes =>
+        println()
+        outcomes.foreach(println)
+      }
+    }
+  }
+
+  // TODO: obviously this needs to be broken up....
+  private def processThisWeek(
+                       week: TradingWeek,
+                       exchangeRatesForThisWeek: Map[ConversionCurrencies, Double],
+                       pricesForStocksThisWeek: Map[Stock, MonetaryValue],
+                       portfoliosForThisWeek: List[Portfolio],
+                       currenciesAcrossAllPortfolios: List[Currency],
+                       portfolioValueRepository: PortfolioValueRepository
+                     )(implicit ec: ExecutionContext): Future[Unit] = {
+    val moneyConverter = new MoneyConverter(exchangeRatesForThisWeek)
+
+    // we want the closing price of each stock in _all_ currencies
+    val closingPrices = pricesForStocksThisWeek.flatMap { case (stock, publishedMonetaryValue) =>
+      currenciesAcrossAllPortfolios.flatMap { currency =>
+        moneyConverter.convert(publishedMonetaryValue, currency).map(ClosingPrice(stock, _))
+      }
+    }.toList
+
+    Portfolio.checkForMissingPrices(portfoliosForThisWeek, closingPrices) match {
+      case Nil =>
+        val portfolioValuations = portfoliosForThisWeek.map(PortfolioValuation(_, closingPrices))
+        portfolioValueRepository.updateValues(week, portfolioValuations)
+      case errors =>
+        // TODO: better combination of errors
+        Future.failed(new Exception(s"$week - ${errors.mkString(", ")}"))
+    }
   }
 
   // =====================================
@@ -91,14 +108,14 @@ object UpdatePortfolioValuesApp extends App {
     .create(influxDbUrl().toExternalForm, "".toCharArray, "foo")
 
   try {
-    if(!influxDBClient.ping) {
+    if (!influxDBClient.ping) {
       println("failed to connect to InfluxDb!")
     }
     else {
       println("connected to InfluxDb successfully")
 
       val result = useInfluxDbClient(influxDBClient)(global)
-          .andThen {
+        .andThen {
           case Success(_) =>
             println("finished successfully")
           case Failure(t) =>
