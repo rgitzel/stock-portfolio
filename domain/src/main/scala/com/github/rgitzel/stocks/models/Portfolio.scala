@@ -12,22 +12,26 @@ case class Portfolio(name: PortfolioName, shareCountsForStocksForCurrencies: Map
 
 object Portfolio {
   def checkForMissingPrices(portfolios: List[Portfolio], closingPrices: List[ClosingPrice]): List[MissingPriceError] = {
-    portfolios.flatMap( portfolio => checkForMissingPrices(portfolio, closingPrices)).distinct
+    val stocksWithPricesForAGivenCurrency = closingPrices.map(_.currency).distinct.map{ currency =>
+      (currency, closingPrices.filter(_.currency == currency).map(_.stock))
+    }.toMap
+    val allErrors = portfolios.flatMap{ portfolio =>
+      portfolio.stocksForCurrencies.toList.flatMap{ case (currency, portfolioStocks) =>
+        val stocksWithoutPricesInThisCurrency = stocksWithPricesForAGivenCurrency.get(currency) match {
+          case Some(stocksWithPricesInThisCurrency) =>
+            portfolioStocks.diff(stocksWithPricesInThisCurrency)
+          case None =>
+            // we don't have _any_ prices in that currency!
+            // TODO: is this an error?
+            portfolioStocks
+        }
+        stocksWithoutPricesInThisCurrency.map(MissingPriceError(_, currency))
+      }
+    }
+    allErrors.distinct
   }
 
   def checkForMissingPrices(portfolio: Portfolio, closingPrices: List[ClosingPrice]): List[MissingPriceError] = {
-    val pricedStocksForCurrencies = closingPrices.map(_.currency).distinct.map{ currency =>
-      (currency, closingPrices.filter(_.currency == currency).map(_.stock))
-    }.toMap
-    portfolio.stocksForCurrencies.toList.flatMap{ case (currency, portfolioStocks) =>
-      val unpricedStocks = pricedStocksForCurrencies.get(currency) match {
-        case None =>
-          // we don't have _any_ prices in that currency!
-          portfolioStocks
-        case Some(pricedStocksForCurrency) =>
-          portfolioStocks.diff(pricedStocksForCurrency)
-      }
-      unpricedStocks.map(MissingPriceError(_, currency))
-    }
+    checkForMissingPrices(List(portfolio), closingPrices)
   }
 }

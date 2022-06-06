@@ -9,6 +9,10 @@ import java.time._
  * note that `month` is 1-indexed
  */
 case class TradingDay(month: Int, day: Int, year: Int) extends Ordered[TradingDay] {
+  // TODO: validate it's an actual day?
+
+  override def toString: String = s"${month}/${day}/${year}"
+
   def plus(days: Int): TradingDay =
     TradingDay(TradingDay.toInstant(this).plus(days, ChronoUnit.DAYS))
 

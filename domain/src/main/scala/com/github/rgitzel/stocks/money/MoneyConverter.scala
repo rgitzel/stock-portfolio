@@ -1,16 +1,13 @@
 package com.github.rgitzel.stocks.money
 
-import scala.util._
-
 class MoneyConverter(conversions: Map[ConversionCurrencies,Double]) {
   def convert(money: MonetaryValue, to: Currency): Option[MonetaryValue] = {
     val from = money.currency
     if(from == to) {
+      // nothing to do
       Some(money)
     } else {
-      multiplier(from, to).map{ multiplier =>
-       MonetaryValue(money.value * multiplier, to)
-      }
+      multiplier(from, to).map(m => MonetaryValue(m * money.value, to))
     }
   }
 

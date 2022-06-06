@@ -33,26 +33,38 @@ class InfluxDbOperations(client: InfluxDBClientScala)(implicit materializer: Mat
 
     source.via(flow).runWith(sink).andThen {
       case Failure(_) =>
-        println(s"InfluxDb query failed after ${elapsedMillis(startedAt)}ms")
+        log(logMessageForQuery("failed", startedAt))
       case Success(_) =>
-        println(s"InfluxDb query succeeded after ${elapsedMillis(startedAt)}ms")
+        log(logMessageForQuery("succeeded", startedAt))
     }
   }
 
-  def write(bucket: String, point: Point)(implicit ec: ExecutionContext): Future[Done] = {
+  private def logMessageForQuery(result: String, startedAt: Instant) =
+    s"InfluxDb query ${result} after ${elapsedMillis(startedAt)}ms"
+
+  def write(bucket: String, points: List[Point])(implicit ec: ExecutionContext): Future[Done] = {
     val startedAt = Instant.now
 
-    val sourcePoint = Source.single(point)
-    val sinkPoint = client.getWriteScalaApi.writePoint(Some(bucket))
-    val materializedPoint = sourcePoint.toMat(sinkPoint)(Keep.right)
-
-    materializedPoint.run().andThen {
-      case Failure(_) =>
-        println(s"InfluxDb write failed after ${elapsedMillis(startedAt)}ms")
-      case Success(_) =>
-        println(s"InfluxDb write succeeded after ${elapsedMillis(startedAt)}ms")
-    }
+    Source.single(points)
+      .toMat(client.getWriteScalaApi.writePoints(Some(bucket)))(Keep.right)
+      .run()
+      .andThen {
+        case Failure(_) =>
+          log(logMessageForWrite("failed", points, startedAt))
+        case Success(_) =>
+          log(logMessageForWrite("succeeded", points, startedAt))
+      }
   }
+
+  def write(bucket: String, point: Point)(implicit ec: ExecutionContext): Future[Done] =
+    write(bucket, List(point))
+
+  private def log(s: String) = {
+//    println(s)
+  }
+  
+  private def logMessageForWrite(result: String, points: List[Point], startedAt: Instant) =
+    s"InfluxDb write of ${points.size} points ${result} after ${elapsedMillis(startedAt)}ms"
 
   private def elapsedMillis(startedAt: Instant): Long =
     Duration.between(startedAt, Instant.now).toMillis

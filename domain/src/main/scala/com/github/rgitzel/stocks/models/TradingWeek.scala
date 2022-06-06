@@ -1,6 +1,8 @@
 package com.github.rgitzel.stocks.models
 
 case class TradingWeek(lastDay: TradingDay) {
+  override def toString: String = s"week ending ${lastDay}"
+
   private val DAYS_IN_WEEK = 7
 
   def followingWeek: TradingWeek = TradingWeek(lastDay.plus(DAYS_IN_WEEK))

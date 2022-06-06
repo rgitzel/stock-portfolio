@@ -5,26 +5,12 @@ import com.github.rgitzel.stocks.money.MonetaryValue
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait PortfolioValueRepository {
-  def updateValue(day: TradingDay, portfolioName: PortfolioName, stock: Stock, value: MonetaryValue)(implicit ec: ExecutionContext): Future[Unit]
+// TODO: what's a better domain name for this?
+final case class PortfolioValuationRecord(day: TradingDay, portfolioName: PortfolioName, stock: Stock, value: MonetaryValue)
 
-  def updateValues(week: TradingWeek, valuations: List[PortfolioValuation])(implicit ec: ExecutionContext): Future[Unit] = {
-    val combinedPortfolioUpdates = valuations.flatMap { portfolioValuation =>
-      portfolioValuation.valuesForStocksForCurrency.flatMap { case (currency, holdings) =>
-        holdings
-          .toList
-          .sortBy(_._1.symbol)
-          .map { case (stock, value) =>
-            (week, portfolioValuation.name, stock, MonetaryValue(value, currency))
-          }
-      }
-    }
-    combinedPortfolioUpdates.foreach(println)
-    Future.sequence(
-      combinedPortfolioUpdates
-        .map { case (week, portfolioName, stock, value) =>
-          updateValue(week.lastDay, portfolioName, stock, value)
-        }
-    ).map(_ => ())
-  }
+trait PortfolioValueRepository {
+  def updateValue(day: TradingDay, portfolioName: PortfolioName, stock: Stock, value: MonetaryValue)(implicit ec: ExecutionContext): Future[Unit] =
+    update(List(PortfolioValuationRecord(day, portfolioName, stock, value)))
+
+  def update(records: List[PortfolioValuationRecord])(implicit ec: ExecutionContext): Future[Unit]
 }
