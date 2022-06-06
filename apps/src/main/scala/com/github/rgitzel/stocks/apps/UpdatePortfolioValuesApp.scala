@@ -1,8 +1,9 @@
 package com.github.rgitzel.stocks.apps
 
 import akka.actor.ActorSystem
+import com.github.rgitzel.influxdb.InfluxDbOperations
 import com.github.rgitzel.quicken.transactions.QuickenPortfolioJournalsRepository
-import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbOperations, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
+import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money.{ConversionCurrencies, Currency, MonetaryValue, MoneyConverter}
 import com.github.rgitzel.stocks.repositories.{ForexRepository, PortfolioValuationRecord, PortfolioValueRepository, PricesRepository}

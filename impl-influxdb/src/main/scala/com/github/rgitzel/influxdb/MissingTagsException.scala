@@ -3,7 +3,9 @@ package com.github.rgitzel.influxdb
 import java.time.Instant
 
 /*
- * this should be enough to look up the offending record with a query like the following:
+ * throw one of these when a given record doesn't have the tags you were expecting
+ *
+ * the message should be enough to look up the offending record with a query like the following:
  *
  *  > select * from forex where time=1651795200000000000
  */

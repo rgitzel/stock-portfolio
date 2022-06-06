@@ -1,6 +1,6 @@
 package com.github.rgitzel.stocks.influxdb
 
-import com.github.rgitzel.influxdb.MissingTagsException
+import com.github.rgitzel.influxdb.{InfluxDbOperations, MissingTagsException, SimplerFluxRecord}
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money.{Currency, MonetaryValue}
 import com.github.rgitzel.stocks.repositories.PricesRepository
@@ -47,7 +47,7 @@ class InfluxDbPricesRepository(influxDb: InfluxDbOperations)
       .filter(
         Restrictions.measurement().equal(measurement)
       )
-    influxDb.runQuery(fluxQuery){ (timestamp, price, tags) =>
+    influxDb.runQuery(fluxQuery){ case SimplerFluxRecord(timestamp, price, tags) =>
       (tags.get("currency"), tags.get("symbol")) match {
         case (Some(currencyCode), Some(symbol)) =>
           (

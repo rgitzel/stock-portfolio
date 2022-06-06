@@ -1,7 +1,8 @@
 package com.github.rgitzel.stocks.apps.examples
 
 import akka.actor.ActorSystem
-import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbOperations}
+import com.github.rgitzel.influxdb.InfluxDbOperations
+import com.github.rgitzel.stocks.influxdb.InfluxDbForexRepository
 import com.github.rgitzel.stocks.models.{TradingDay, TradingWeek}
 import example.InfluxDbExample
 

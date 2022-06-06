@@ -1,5 +1,6 @@
 package com.github.rgitzel.stocks.influxdb
 
+import com.github.rgitzel.influxdb.InfluxDbOperations
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.repositories._
 import com.influxdb.client.domain.WritePrecision

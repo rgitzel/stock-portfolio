@@ -1,4 +1,4 @@
-package com.github.rgitzel.stocks.influxdb
+package com.github.rgitzel.influxdb
 
 import akka.Done
 import akka.stream.Materializer
@@ -10,41 +10,34 @@ import com.influxdb.query.dsl.Flux
 
 import java.time.{Duration, Instant}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
 /*
- * pulling records out of Influx seems pretty consistent, all that differs
- *  is the query (of course) and a way to convert a record into some type T
+ * hide the Akka streams handling, it doesn't change
+ *  based on the queries or updates themselves
  */
 class InfluxDbOperations(client: InfluxDBClientScala)(implicit materializer: Materializer) {
-  def runQuery[T](query: Flux)(toT: (Instant, Double, Map[String,String]) => T)(implicit ec: ExecutionContext): Future[Seq[T]] = {
+  // pulling records out of Influx seems pretty consistent, all that differs
+  //  is the query (of course) and a way to convert a record into some type T
+  def runQuery[T](query: Flux)(convertToDesiredType: SimplerFluxRecord => T)(implicit ec: ExecutionContext): Future[Seq[T]] = {
     val startedAt = Instant.now
-    val source =  client.getQueryScalaApi().query(query.toString)
-    val flow = Flow[FluxRecord]
-      .map{ record =>
-        toT(
-          record.getTime,
-          record.getValue.toString.toDouble,
-          record.getValues.asScala.view.mapValues(_.toString).toMap
-        )
+    client.getQueryScalaApi().query(query.toString)
+      .via(
+        Flow[FluxRecord]
+          .map(SimplerFluxRecord(_))
+          .map(convertToDesiredType)
+      )
+      .runWith(Sink.seq[T])
+      .andThen {
+        case Failure(_) =>
+          log(logMessageForQuery("failed", startedAt))
+        case Success(_) =>
+          log(logMessageForQuery("succeeded", startedAt))
       }
-    val sink = Sink.seq[T]
-
-    source.via(flow).runWith(sink).andThen {
-      case Failure(_) =>
-        log(logMessageForQuery("failed", startedAt))
-      case Success(_) =>
-        log(logMessageForQuery("succeeded", startedAt))
-    }
   }
-
-  private def logMessageForQuery(result: String, startedAt: Instant) =
-    s"InfluxDb query ${result} after ${elapsedMillis(startedAt)}ms"
 
   def write(bucket: String, points: List[Point])(implicit ec: ExecutionContext): Future[Done] = {
     val startedAt = Instant.now
-
     Source.single(points)
       .toMat(client.getWriteScalaApi.writePoints(Some(bucket)))(Keep.right)
       .run()
@@ -59,10 +52,16 @@ class InfluxDbOperations(client: InfluxDBClientScala)(implicit materializer: Mat
   def write(bucket: String, point: Point)(implicit ec: ExecutionContext): Future[Done] =
     write(bucket, List(point))
 
+  // =============================
+
+  // TODO: build a simple logger trait
   private def log(s: String) = {
 //    println(s)
   }
-  
+
+  private def logMessageForQuery(result: String, startedAt: Instant) =
+    s"InfluxDb query ${result} after ${elapsedMillis(startedAt)}ms"
+
   private def logMessageForWrite(result: String, points: List[Point], startedAt: Instant) =
     s"InfluxDb write of ${points.size} points ${result} after ${elapsedMillis(startedAt)}ms"
 
