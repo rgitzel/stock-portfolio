@@ -30,6 +30,7 @@ object UpdatePortfolioValuesApp extends App {
     // my data is only good going back seven years
     val numberOfWeeks = 7 * 52
     val weeks = TradingWeek(TradingDay(6, 3, 2022)).previousWeeks(numberOfWeeks)
+    println(s"processing from the ${weeks.head} to the ${weeks.last}")
 
     transactionsPortfolioRepository.portfolioJournals().flatMap { journals =>
       val currenciesAcrossAllPortfolios = (journals.flatMap(_.currencies) :+ desiredCurrency).distinct
@@ -37,9 +38,9 @@ object UpdatePortfolioValuesApp extends App {
       println(s"loaded ${journals.size} portfolio journals (${journals.map(_.name).mkString(", ")})" +
         s" using ${currenciesAcrossAllPortfolios.size} currencies (${currenciesAcrossAllPortfolios.map(_.code).mkString(", ") })")
 
-      Future.sequence(resultsByWeek(weeks, journals, forexRepository, pricesRepository, currenciesAcrossAllPortfolios))
-        .flatMap{ recordsForWeeks =>
-          val recordsForWeeksThatHaveResults = recordsForWeeks.filter(_._2.nonEmpty)
+      processEachWeek(weeks, journals, forexRepository, pricesRepository, currenciesAcrossAllPortfolios)
+        .flatMap{ recordsToBeUpdatedForEachWeek =>
+          val recordsForWeeksThatHaveResults = recordsToBeUpdatedForEachWeek.filter(_._2.nonEmpty)
 
           val allRecords = recordsForWeeksThatHaveResults.flatMap(_._2)
           println(s"retrieved data for ${recordsForWeeksThatHaveResults.size} weeks (of ${numberOfWeeks} requested)," +
@@ -56,47 +57,60 @@ object UpdatePortfolioValuesApp extends App {
     }
   }
 
-  private def resultsByWeek(
+  private def processEachWeek(
                              weeks: List[TradingWeek],
                              journals: List[PortfolioJournal],
                              forexRepository: ForexRepository,
                              pricesRepository: PricesRepository,
                              currenciesAcrossAllPortfolios: List[Currency]
                            )
-                           (implicit ec: ExecutionContext): List[Future[(TradingWeek,List[PortfolioValuationRecord])]] =
-    weeks.map { week =>
-      forexRepository.weeklyClosingRates(week).flatMap { exchangeRatesForThisWeek =>
+                           (implicit ec: ExecutionContext): Future[List[(TradingWeek,List[PortfolioValuationRecord])]] =
+    Future.sequence(
+      weeks.map { week =>
+        resultsForOneWeek(week, journals, forexRepository, pricesRepository, currenciesAcrossAllPortfolios)
+          .recoverWith { t =>
+            println(s"WARNING! skipping ${week} due errors: ${t.getMessage} ")
+            Future.successful((week, List[PortfolioValuationRecord]()))
+          }
+      }
+    )
+
+  private def resultsForOneWeek(
+                             week: TradingWeek,
+                             journals: List[PortfolioJournal],
+                             forexRepository: ForexRepository,
+                             pricesRepository: PricesRepository,
+                             currenciesAcrossAllPortfolios: List[Currency]
+                           )
+                           (implicit ec: ExecutionContext): Future[(TradingWeek,List[PortfolioValuationRecord])] = {
+    forexRepository.weeklyClosingRates(week).flatMap { exchangeRatesForThisWeek =>
+      if(exchangeRatesForThisWeek.isEmpty)
+        Future.failed(new Exception(s"no exchange rates found for ${week}"))
+      else
         pricesRepository.weeklyClosingPrices(week).flatMap { pricesForStocksThisWeek =>
+          if(pricesForStocksThisWeek.isEmpty)
+            println(s"WARNING: no stock prices found for ${week}")
           Future.fromTry(
-            recordsForThisWeek(
+            determineRecordsToBeUpdatedForThisWeek(
               week,
               journals.map(_.portfolioAsOf(week.lastDay)),
               exchangeRatesForThisWeek,
               pricesForStocksThisWeek,
               currenciesAcrossAllPortfolios
             )
-              .recoverWith{ t =>
-                // TODO: is this the right place to drop the error? in particular, when missing data for a given week
-                println(s"WARNING! skipping ${week} due errors: ${t.getMessage} ")
-                Success(List[PortfolioValuationRecord]())
-              }
-              .map{ records =>
-//                println(s"built up ${records.size} records for ${week}")
-                (week, records)
-              }
           )
         }
       }
-    }
+  }
 
-  // TODO: obviously this needs to be broken up....
-  private def recordsForThisWeek(
+  // TODO: this needs to be broken up....
+  private def determineRecordsToBeUpdatedForThisWeek(
                        week: TradingWeek,
                        portfoliosForThisWeek: List[Portfolio],
                        exchangeRatesForThisWeek: Map[ConversionCurrencies, Double],
                        pricesForStocksThisWeek: Map[Stock, MonetaryValue],
                        currenciesAcrossAllPortfolios: List[Currency]
-                     )(implicit ec: ExecutionContext): Try[List[PortfolioValuationRecord]] = {
+                     )(implicit ec: ExecutionContext): Try[(TradingWeek,List[PortfolioValuationRecord])] = {
     val moneyConverter = new MoneyConverter(exchangeRatesForThisWeek)
 
     // we want the closing price of each stock in _all_ currencies (it's possible to have, say,
@@ -110,7 +124,7 @@ object UpdatePortfolioValuesApp extends App {
     Portfolio.checkForMissingPrices(portfoliosForThisWeek, closingPrices) match {
       case Nil =>
         val portfolioValuations = portfoliosForThisWeek.map(PortfolioValuation(_, closingPrices))
-        Success(portfolioValuations.flatMap { portfolioValuation =>
+        val records = portfolioValuations.flatMap { portfolioValuation =>
           portfolioValuation.valuesForStocksForCurrency.flatMap { case (currency, holdings) =>
             holdings
               .toList
@@ -119,7 +133,8 @@ object UpdatePortfolioValuesApp extends App {
                 PortfolioValuationRecord(week.lastDay, portfolioValuation.name, stock, MonetaryValue(value, currency))
               }
           }
-        })
+        }
+        Success((week, records))
       case errors =>
         // TODO: better combination of errors
         Failure(new Exception(s"$week - ${errors.mkString(", ")}"))
