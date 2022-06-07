@@ -6,7 +6,8 @@ import com.github.rgitzel.quicken.transactions.QuickenPortfolioJournalsRepositor
 import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money.{ConversionCurrencies, Currency, MonetaryValue, MoneyConverter}
-import com.github.rgitzel.stocks.repositories.{ForexRepository, PortfolioValuationRecord, PortfolioValueRepository, PricesRepository}
+import com.github.rgitzel.stocks.repositories
+import com.github.rgitzel.stocks.repositories.{ForexRepository, AccountStockValuationRecord, PortfolioValuationRecord, AccountValuationRecord, PortfolioValueRepository, PricesRepository, WeeklyRecords}
 import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
 
 import java.io.File
@@ -39,21 +40,15 @@ object UpdatePortfolioValuesApp extends App {
       println(s"loaded ${journals.size} portfolio journals (${journals.map(_.name).mkString(", ")})" +
         s" using ${currenciesAcrossAllPortfolios.size} currencies (${currenciesAcrossAllPortfolios.map(_.code).mkString(", ") })")
 
-      processEachWeek(weeks, journals, forexRepository, pricesRepository, currenciesAcrossAllPortfolios)
+      processEachWeek(weeks, journals, forexRepository, pricesRepository, currenciesAcrossAllPortfolios, desiredCurrency)
         .flatMap{ recordsToBeUpdatedForEachWeek =>
-          val recordsForWeeksThatHaveResults = recordsToBeUpdatedForEachWeek.filter(_._2.nonEmpty)
+          val recordsForWeeksThatHaveResults = recordsToBeUpdatedForEachWeek.filter(_.accountStocks.nonEmpty)
 
-          val allRecords = recordsForWeeksThatHaveResults.flatMap(_._2)
+          val recordsCount = recordsForWeeksThatHaveResults.map(week => week.accountStocks.size + week.accounts.size + 1).sum
           println(s"retrieved data for ${recordsForWeeksThatHaveResults.size} weeks (of ${numberOfWeeks} requested)," +
-            s" extracting ${allRecords.size} records to update")
+            s" extracting ${recordsCount} records to update")
 
-          portfolioValueRepository.update(allRecords)
-            .andThen {
-              case Success(_) =>
-                println(s"successfully wrote ${allRecords.size} records")
-              case Failure(t) =>
-                println(s"failed to write results: ${t.getMessage}")
-            }
+          portfolioValueRepository.updateValues(recordsForWeeksThatHaveResults)
         }
     }
   }
@@ -63,15 +58,16 @@ object UpdatePortfolioValuesApp extends App {
                              journals: List[PortfolioJournal],
                              forexRepository: ForexRepository,
                              pricesRepository: PricesRepository,
-                             currenciesAcrossAllPortfolios: List[Currency]
+                             currenciesAcrossAllPortfolios: List[Currency],
+                             totalsCurrency: Currency
                            )
-                           (implicit ec: ExecutionContext): Future[List[(TradingWeek,List[PortfolioValuationRecord])]] =
+                           (implicit ec: ExecutionContext): Future[List[WeeklyRecords]] =
     Future.sequence(
       weeks.map { week =>
-        resultsForOneWeek(week, journals, forexRepository, pricesRepository, currenciesAcrossAllPortfolios)
+        resultsForOneWeek(week, journals, forexRepository, pricesRepository, currenciesAcrossAllPortfolios, totalsCurrency)
           .recoverWith { t =>
             println(s"WARNING! skipping ${week} due errors: ${t.getMessage} ")
-            Future.successful((week, List[PortfolioValuationRecord]()))
+            Future.successful(WeeklyRecords.empty(week))
           }
       }
     )
@@ -81,9 +77,10 @@ object UpdatePortfolioValuesApp extends App {
                              journals: List[PortfolioJournal],
                              forexRepository: ForexRepository,
                              pricesRepository: PricesRepository,
-                             currenciesAcrossAllPortfolios: List[Currency]
+                             currenciesAcrossAllPortfolios: List[Currency],
+                             totalsCurrency: Currency
                            )
-                           (implicit ec: ExecutionContext): Future[(TradingWeek,List[PortfolioValuationRecord])] = {
+                           (implicit ec: ExecutionContext): Future[WeeklyRecords] = {
     forexRepository.weeklyClosingRates(week).flatMap { exchangeRatesForThisWeek =>
       if(exchangeRatesForThisWeek.isEmpty)
         Future.failed(new Exception(s"no exchange rates found for ${week}"))
@@ -97,7 +94,8 @@ object UpdatePortfolioValuesApp extends App {
               journals.map(_.portfolioAsOf(week.lastDay)),
               exchangeRatesForThisWeek,
               pricesForStocksThisWeek,
-              currenciesAcrossAllPortfolios
+              currenciesAcrossAllPortfolios,
+              totalsCurrency
             )
           )
         }
@@ -110,8 +108,9 @@ object UpdatePortfolioValuesApp extends App {
                        portfoliosForThisWeek: List[Portfolio],
                        exchangeRatesForThisWeek: Map[ConversionCurrencies, Double],
                        pricesForStocksThisWeek: Map[Stock, MonetaryValue],
-                       currenciesAcrossAllPortfolios: List[Currency]
-                     )(implicit ec: ExecutionContext): Try[(TradingWeek,List[PortfolioValuationRecord])] = {
+                       currenciesAcrossAllPortfolios: List[Currency],
+                       totalsCurrency: Currency
+                     )(implicit ec: ExecutionContext): Try[WeeklyRecords] = {
     val moneyConverter = new MoneyConverter(exchangeRatesForThisWeek)
 
     // we want the closing price of each stock in _all_ currencies (it's possible to have, say,
@@ -125,17 +124,44 @@ object UpdatePortfolioValuesApp extends App {
     Portfolio.checkForMissingPrices(portfoliosForThisWeek, closingPrices) match {
       case Nil =>
         val portfolioValuations = portfoliosForThisWeek.map(PortfolioValuation(_, closingPrices))
-        val records = portfolioValuations.flatMap { portfolioValuation =>
-          portfolioValuation.valuesForStocksForCurrency.flatMap { case (currency, holdings) =>
-            holdings
-              .toList
-              .sortBy(_._1.symbol)
-              .map { case (stock, value) =>
-                PortfolioValuationRecord(week.lastDay, portfolioValuation.name, stock, MonetaryValue(value, currency))
-              }
-          }
+        val records = portfolioValuations.map { portfolioValuation =>
+          val stocksRecords = portfolioValuation.valuesForStocksForCurrency.flatMap { case (currency, holdings) =>
+              holdings
+                .toList
+                .sortBy(_._1.symbol)
+                .map { case (stock, value) =>
+                  AccountStockValuationRecord(week.lastDay, portfolioValuation.name, stock, MonetaryValue(value, currency))
+                }
+            }
+          val subtotalsRecords = stocksRecords
+            .groupBy(_.value.currency)
+            .map{ case (currency, stockRecords) =>
+              AccountValuationRecord(
+                week.lastDay,
+                portfolioValuation.name,
+                MonetaryValue(
+                  stockRecords.map(_.value.value).sum,
+                  currency
+                )
+              )
+            }
+          (stocksRecords, subtotalsRecords)
         }
-        Success((week, records))
+
+        val totalsRecord = PortfolioValuationRecord(
+          week.lastDay,
+          MonetaryValue(
+            records.flatMap(_._2.flatMap(sub => moneyConverter.convert(sub.value, totalsCurrency))).map(_.value).sum,
+            totalsCurrency
+          )
+        )
+
+        Success(repositories.WeeklyRecords(
+          week,
+          records.flatMap(_._1.toList),
+          records.flatMap(_._2.toList),
+          totalsRecord
+        ))
       case errors =>
         // TODO: better combination of errors
         Failure(new Exception(s"$week - ${errors.mkString(", ")}"))

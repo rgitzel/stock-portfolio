@@ -11,20 +11,40 @@ import scala.concurrent.{ExecutionContext, Future}
 class InfluxDbPortfolioValueRepository(influxDb: InfluxDbOperations)
   extends PortfolioValueRepository {
   private val databaseName = "stocks"
-  private val measurement = "portfolio"
 
-  override def update(records: List[PortfolioValuationRecord])(implicit ec: ExecutionContext): Future[Unit] = {
+  override def updateAccountStockRecords(records: List[AccountStockValuationRecord])(implicit ec: ExecutionContext): Future[Int] = {
     val points = records.map{ record =>
       Point
-        .measurement(measurement)
+        .measurement("portfolio-stocks")
         .addTag("name", record.portfolioName.s)
         .addTag("currency", record.value.currency.code)
         .addTag("symbol", record.stock.symbol)
         .addField("value", record.value.value)
         .time(TradingDay.toInstant(record.day), WritePrecision.NS)
     }
-
-    influxDb.write(databaseName, points).map(_ => ())
+    influxDb.write(databaseName, points).map(_ => points.size)
   }
 
+  override def updatePortfolioRecords(records: List[PortfolioValuationRecord])(implicit ec: ExecutionContext): Future[Int] = {
+    val points = records.map{ record =>
+      Point
+        .measurement("total_value")
+        .addTag("currency", record.value.currency.code)
+        .addField("value", record.value.value)
+        .time(TradingDay.toInstant(record.day), WritePrecision.NS)
+    }
+    influxDb.write(databaseName, points).map(_ => points.size)
+  }
+
+  override def updateAccountRecords(records: List[AccountValuationRecord])(implicit ec: ExecutionContext): Future[Int] = {
+    val points = records.map{ record =>
+      Point
+        .measurement("portfolio-subtotals")
+        .addTag("name", record.portfolioName.s)
+        .addTag("currency", record.value.currency.code)
+        .addField("value", record.value.value)
+        .time(TradingDay.toInstant(record.day), WritePrecision.NS)
+    }
+    influxDb.write(databaseName, points).map(_ => points.size)
+  }
 }
