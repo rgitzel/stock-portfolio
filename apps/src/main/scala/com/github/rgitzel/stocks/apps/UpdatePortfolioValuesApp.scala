@@ -7,11 +7,12 @@ import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbPort
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money.{ConversionCurrencies, Currency, MonetaryValue, MoneyConverter}
 import com.github.rgitzel.stocks.repositories
-import com.github.rgitzel.stocks.repositories.{ForexRepository, AccountStockValuationRecord, PortfolioValuationRecord, AccountValuationRecord, PortfolioValueRepository, PricesRepository, WeeklyRecords}
+import com.github.rgitzel.stocks.repositories.{AccountStockValuationRecord, AccountValuationRecord, ForexRepository, PortfolioValuationRecord, PortfolioValueRepository, PricesRepository, WeeklyRecords}
 import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
 
 import java.io.File
 import java.net.URL
+import java.time.Instant
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -29,10 +30,10 @@ object UpdatePortfolioValuesApp extends App {
 
     val desiredCurrency = Currency("CAD")
 
-    // my data is only good going back seven years
-    val numberOfWeeks = 7 * 52
-    val weeks = TradingWeek(TradingDay(6, 3, 2022)).previousWeeks(numberOfWeeks)
-    println(s"processing from the ${weeks.head} to the ${weeks.last}")
+    // my data is only good going back to 2015 (due to a few years of lost statements)
+    val weeks = TradingWeek(TradingDay(5, 1, 2015)).to(TradingWeek.previousWeek())
+
+    println(s"processing from ${weeks.head} to ${weeks.last}")
 
     transactionsPortfolioRepository.portfolioJournals().flatMap { journals =>
       val currenciesAcrossAllPortfolios = (journals.flatMap(_.currencies) :+ desiredCurrency).distinct
@@ -45,7 +46,7 @@ object UpdatePortfolioValuesApp extends App {
           val recordsForWeeksThatHaveResults = recordsToBeUpdatedForEachWeek.filter(_.accountStocks.nonEmpty)
 
           val recordsCount = recordsForWeeksThatHaveResults.map(week => week.accountStocks.size + week.accounts.size + 1).sum
-          println(s"retrieved data for ${recordsForWeeksThatHaveResults.size} weeks (of ${numberOfWeeks} requested)," +
+          println(s"retrieved data for ${recordsForWeeksThatHaveResults.size} weeks (of ${weeks.size} requested)," +
             s" extracting ${recordsCount} records to update")
 
           portfolioValueRepository.updateValues(recordsForWeeksThatHaveResults)
@@ -66,7 +67,7 @@ object UpdatePortfolioValuesApp extends App {
       weeks.map { week =>
         resultsForOneWeek(week, journals, forexRepository, pricesRepository, currenciesAcrossAllPortfolios, totalsCurrency)
           .recoverWith { t =>
-            println(s"WARNING! skipping ${week} due errors: ${t.getMessage} ")
+            println(s"WARNING! skipping ${week} due to errors: ${t.getMessage} ")
             Future.successful(WeeklyRecords.empty(week))
           }
       }
@@ -91,7 +92,7 @@ object UpdatePortfolioValuesApp extends App {
           Future.fromTry(
             determineRecordsToBeUpdatedForThisWeek(
               week,
-              journals.map(_.portfolioAsOf(week.lastDay)),
+              journals.map(_.portfolioAsOf(week.friday)),
               exchangeRatesForThisWeek,
               pricesForStocksThisWeek,
               currenciesAcrossAllPortfolios,
@@ -130,14 +131,14 @@ object UpdatePortfolioValuesApp extends App {
                 .toList
                 .sortBy(_._1.symbol)
                 .map { case (stock, value) =>
-                  AccountStockValuationRecord(week.lastDay, portfolioValuation.name, stock, MonetaryValue(value, currency))
+                  AccountStockValuationRecord(week.friday, portfolioValuation.name, stock, MonetaryValue(value, currency))
                 }
             }
           val subtotalsRecords = stocksRecords
             .groupBy(_.value.currency)
             .map{ case (currency, stockRecords) =>
               AccountValuationRecord(
-                week.lastDay,
+                week.friday,
                 portfolioValuation.name,
                 MonetaryValue(
                   stockRecords.map(_.value.value).sum,
@@ -149,7 +150,7 @@ object UpdatePortfolioValuesApp extends App {
         }
 
         val totalsRecord = PortfolioValuationRecord(
-          week.lastDay,
+          week.friday,
           MonetaryValue(
             records.flatMap(_._2.flatMap(sub => moneyConverter.convert(sub.value, totalsCurrency))).map(_.value).sum,
             totalsCurrency

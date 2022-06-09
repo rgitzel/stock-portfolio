@@ -7,7 +7,7 @@ import scala.util.{Failure, Try}
 object TradingDayParser {
   // e.g. "2/11/21"
   def fromString(s: String): Try[TradingDay] = {
-    s.split("/").toList match {
+    s.split('/').toList match {
       case List(month, day, year) =>
         Try(TradingDay(month.toInt, day.toInt, ("20" + year).toInt))
           .recoverWith { _ => failure(s) }

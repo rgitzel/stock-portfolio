@@ -26,7 +26,7 @@ object GetPortfolioApp extends App {
           println()
           println(s"portfolios as of ${week}")
 
-          journals.map(_.portfolioAsOf(week.lastDay))
+          journals.map(_.portfolioAsOf(week.friday))
             .foreach{ portfolio =>
               println(portfolio.name)
               portfolio.shareCountsForStocksForCurrencies

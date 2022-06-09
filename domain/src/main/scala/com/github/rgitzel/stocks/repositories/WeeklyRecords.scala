@@ -16,6 +16,6 @@ object WeeklyRecords {
       week,
       List[AccountStockValuationRecord](),
       List[AccountValuationRecord](),
-      PortfolioValuationRecord(week.lastDay, MonetaryValue(0.0, Currency(""))) // TODO: awkward!
+      PortfolioValuationRecord(week.friday, MonetaryValue(0.0, Currency(""))) // TODO: awkward!
     )
 }

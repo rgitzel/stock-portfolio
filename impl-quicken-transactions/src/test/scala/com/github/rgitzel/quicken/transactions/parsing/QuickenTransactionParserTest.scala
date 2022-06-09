@@ -13,14 +13,16 @@ class QuickenTransactionParserTest extends AnyFlatSpecLike with TryValues {
   }
 
   List(
-    ("empty", ""),
-    ("no spaces", "LIRAUSDAAPL2/01/16Bought6"),
-    ("bad day", "LIRA USD AAPL 2/01 Bought 6"),
-    ("unrecognized action", "LIRA USD AAPL 2/01/16 Dropped 6"),
-  ).foreach{ case (reason, s) =>
+    ("empty", "", "empty string"),
+    ("no spaces", "LIRAUSDAAPL2/01/16Bought6", "incorrect number of values"),
+    ("too many values", "LIRA USD AAPL 2/01/16 Bought 6 Foo", "incorrect number of values"),
+    ("bad day", "LIRA USD AAPL 2/01 Bought 6", "invalid date string '2/01'"),
+    ("unrecognized action", "LIRA USD AAPL 2/01/16 Dropped 6", "unrecognized transaction type 'Dropped'"),
+  ).foreach{ case (reason, s, exceptionMessage) =>
     it should s"fail on $reason" in {
       // weird... comparing the `Exception` to itself fails?
-      QuickenTransactionParser.fromString(s).failure.exception.getMessage should be (QuickenTransactionParser.failure(s).exception.getMessage)
+      val expected = QuickenTransactionParser.failure(s, exceptionMessage).exception.getMessage
+      QuickenTransactionParser.fromString(s).failure.exception.getMessage should be (expected)
     }
   }
 }

@@ -22,7 +22,7 @@ class InfluxDbForexRepository(influxdb: InfluxDbOperations)
   }
 
   override def weeklyClosingRates(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[ConversionCurrencies,Double]] = {
-    val ts = TradingDay.toInstant(week.lastDay)
+    val ts = TradingDay.toInstant(week.friday)
     runQuery(ts.minus(7, ChronoUnit.DAYS).plusMillis(1), ts.plusMillis(1))
   }
 

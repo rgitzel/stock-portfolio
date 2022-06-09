@@ -24,7 +24,7 @@ class InfluxDbPricesRepository(influxDb: InfluxDbOperations)
   }
 
   override def weeklyClosingPrices(week: TradingWeek)(implicit ec: ExecutionContext): Future[Map[Stock,MonetaryValue]] = {
-    val ts = TradingDay.toInstant(week.lastDay)
+    val ts = TradingDay.toInstant(week.friday)
     runQuery(ts.minus(7, ChronoUnit.DAYS).plusMillis(1), ts.plusMillis(1))
   }
 
