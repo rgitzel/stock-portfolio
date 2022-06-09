@@ -1,11 +1,11 @@
 package com.github.rgitzel.quicken.transactions.parsing
 
-import com.github.rgitzel.stocks.models.{StockPurchased, StockSold, StockSplit}
+import com.github.rgitzel.stocks.accounts.{StockPurchased, StockSold, StockSplit}
 import org.scalatest.TryValues
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers._
 
-class QuickenActionParserTest extends AnyFlatSpecLike with TryValues {
+class QuickenAccountAccountActivityParserTest extends AnyFlatSpecLike with TryValues {
   import QuickenTransactionDetailsParser._
   
   "apply" should "parse a buy correctly" in {

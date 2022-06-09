@@ -1,16 +1,18 @@
 package com.github.rgitzel.quicken.transactions
 
 import com.github.rgitzel.quicken.transactions.parsing.QuickenTransactionParser
+import com.github.rgitzel.stocks.accounts
+import com.github.rgitzel.stocks.accounts.AccountJournal
 import com.github.rgitzel.stocks.models._
-import com.github.rgitzel.stocks.repositories.PortfolioJournalsRepository
+import com.github.rgitzel.stocks.repositories.AccountJournalsRepository
 
 import java.io.File
 import scala.concurrent._
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-class QuickenPortfolioJournalsRepository(file: File) extends PortfolioJournalsRepository {
-  override def portfolioJournals()(implicit ec: ExecutionContext): Future[List[PortfolioJournal]] =
+class QuickenAccountJournalsRepository(file: File) extends AccountJournalsRepository {
+  override def accountJournals()(implicit ec: ExecutionContext): Future[List[AccountJournal]] =
     Future.fromTry(
       fileLines(file)
         .flatMap{ lines =>
@@ -20,7 +22,7 @@ class QuickenPortfolioJournalsRepository(file: File) extends PortfolioJournalsRe
                 parsedLines.map(_.get)
                   .groupBy(_._1)
                   .map { case (portfolioName, parsed) =>
-                    PortfolioJournal(portfolioName, parsed.map(_._2).sortBy(_.tradingDay))
+                    accounts.AccountJournal(portfolioName, parsed.map(_._2).sortBy(_.tradingDay))
                   }
                   .toList
                   .sortBy(_.name)

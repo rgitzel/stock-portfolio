@@ -1,5 +1,6 @@
 package com.github.rgitzel.stocks.repositories
 
+import com.github.rgitzel.stocks.accounts.AccountName
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money._
 
@@ -7,8 +8,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 // TODO: what's a better domain name for these?... probably based on "Account"?
-final case class AccountStockValuationRecord(day: TradingDay, portfolioName: PortfolioName, stock: Stock, value: MonetaryValue)
-final case class AccountValuationRecord(day: TradingDay, portfolioName: PortfolioName, value: MonetaryValue)
+final case class AccountStockValuationRecord(day: TradingDay, portfolioName: AccountName, stock: Stock, value: MonetaryValue)
+final case class AccountValuationRecord(day: TradingDay, portfolioName: AccountName, value: MonetaryValue)
 
 // this is for the portfolio overall
 final case class PortfolioValuationRecord(day: TradingDay, value: MonetaryValue)

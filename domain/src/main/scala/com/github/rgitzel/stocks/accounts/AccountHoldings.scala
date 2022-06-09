@@ -1,17 +1,21 @@
-package com.github.rgitzel.stocks.models
+package com.github.rgitzel.stocks.accounts
 
 import com.github.rgitzel.stocks.models.errors.MissingPriceError
-import com.github.rgitzel.stocks.money.{Currency, _}
+import com.github.rgitzel.stocks.models.{ClosingPrice, Stock}
+import com.github.rgitzel.stocks.money.Currency
 
-case class Portfolio(name: PortfolioName, shareCountsForStocksForCurrencies: Map[Currency,Map[Stock,Int]]) {
+/*
+ * what's in an account at a specific period of time?
+ */
+case class AccountHoldings(name: AccountName, shareCountsForStocksForCurrencies: Map[Currency,Map[Stock,Int]]) {
   // which currencies?
   lazy val currencies: List[Currency] = shareCountsForStocksForCurrencies.keys.toList
   // which stocks do we have in a given currency?
   lazy val stocksForCurrencies: Map[Currency,List[Stock]] = shareCountsForStocksForCurrencies.view.mapValues(_.keys.toList).toMap
 }
 
-object Portfolio {
-  def checkForMissingPrices(portfolios: List[Portfolio], closingPrices: List[ClosingPrice]): List[MissingPriceError] = {
+object AccountHoldings {
+  def checkForMissingPrices(portfolios: List[AccountHoldings], closingPrices: List[ClosingPrice]): List[MissingPriceError] = {
     val stocksWithPricesForAGivenCurrency = closingPrices.map(_.currency).distinct.map{ currency =>
       (currency, closingPrices.filter(_.currency == currency).map(_.stock))
     }.toMap
@@ -31,7 +35,7 @@ object Portfolio {
     allErrors.distinct
   }
 
-  def checkForMissingPrices(portfolio: Portfolio, closingPrices: List[ClosingPrice]): List[MissingPriceError] = {
+  def checkForMissingPrices(portfolio: AccountHoldings, closingPrices: List[ClosingPrice]): List[MissingPriceError] = {
     checkForMissingPrices(List(portfolio), closingPrices)
   }
 }

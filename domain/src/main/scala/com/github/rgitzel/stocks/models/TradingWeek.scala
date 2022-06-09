@@ -2,6 +2,10 @@ package com.github.rgitzel.stocks.models
 
 import java.time.Instant
 
+/*
+ * over the long term, we don't care about individual days,
+ *  it's more than enough to look at a portfolio from week to week
+ */
 case class TradingWeek(friday: TradingDay) {
   if (!friday.isFriday)
     throw new IllegalArgumentException("trading week must end in a Friday")
@@ -33,7 +37,7 @@ object TradingWeek {
   def apply(month: Int, day: Int, year: Int): TradingWeek =
     TradingWeek(TradingDay(month, day, year))
 
-  def previousWeek(relativeTo: Instant): TradingWeek = TradingWeek(TradingDay.previousFriday(relativeTo))
+  def mostRecent(): TradingWeek = mostRecent(Instant.now())
 
-  def previousWeek(): TradingWeek = TradingWeek(TradingDay.previousFriday(Instant.now()))
+  def mostRecent(relativeTo: Instant): TradingWeek = TradingWeek(TradingDay.previousFriday(relativeTo))
 }

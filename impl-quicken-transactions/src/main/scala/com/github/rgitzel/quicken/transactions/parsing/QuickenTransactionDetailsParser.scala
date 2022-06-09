@@ -1,12 +1,12 @@
 package com.github.rgitzel.quicken.transactions.parsing
 
-import com.github.rgitzel.stocks.models.{StockPurchased, StockSold, StockSplit, Action}
+import com.github.rgitzel.stocks.accounts.{AccountTransaction, StockPurchased, StockSold, StockSplit}
 
 import scala.util.{Failure, Success, Try}
 
 object QuickenTransactionDetailsParser {
   // e.g. "Bought" "100"
-  def fromStrings(action: String, value: String): Try[Action] = {
+  def fromStrings(action: String, value: String): Try[AccountTransaction] = {
     action match {
       case "Bought" =>
         asInt(value).map(StockPurchased)

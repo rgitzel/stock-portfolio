@@ -1,11 +1,15 @@
-package com.github.rgitzel.stocks.models
+package com.github.rgitzel.stocks.accounts
 
+import com.github.rgitzel.stocks.models.TradingDay
 import com.github.rgitzel.stocks.money.Currency
 
-final case class PortfolioJournal(name: PortfolioName, transactions: List[Transaction]) {
+/*
+ * all of the transactions made in this account
+ */
+final case class AccountJournal(name: AccountName, transactions: List[AccountActivity]) {
   val currencies: List[Currency] = transactions.map(_.currency).distinct
 
-  def portfolioAsOf(day: TradingDay): Portfolio = {
+  def accountAsOf(day: TradingDay): AccountHoldings = {
     val shareCountsForStocks = transactions
       .filter(_.tradingDay < day)
       .groupBy(_.currency)
@@ -27,6 +31,6 @@ final case class PortfolioJournal(name: PortfolioName, transactions: List[Transa
         .toMap
     }.toMap
 
-    Portfolio(name, shareCountsForStocks)
+    AccountHoldings(name, shareCountsForStocks)
   }
 }
