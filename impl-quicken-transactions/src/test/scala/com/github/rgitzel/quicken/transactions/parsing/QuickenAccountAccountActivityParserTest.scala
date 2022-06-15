@@ -9,12 +9,12 @@ class QuickenAccountAccountActivityParserTest extends AnyFlatSpecLike with TryVa
   import QuickenTransactionDetailsParser._
   
   "apply" should "parse a buy correctly" in {
-    fromStrings("Bought", "100").success.value should be (StockPurchased(100))
+    fromStrings("Bought", "100 1.0").success.value should be (StockPurchased(100, 1.0, 0.0))
   }
 
   it should "parse a sale correctly" in {
     // note that the value is _negative_ in the Quicken file
-    fromStrings("Sold", "-5").success.value should be (StockSold(5))
+    fromStrings("Sold", "-5 1.0").success.value should be (StockSold(5, 1.0, 0.0))
   }
 
   it should "parse a split correctly" in {

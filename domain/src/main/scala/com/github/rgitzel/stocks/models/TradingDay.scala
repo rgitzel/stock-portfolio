@@ -1,6 +1,7 @@
 package com.github.rgitzel.stocks.models
 
 import com.github.rgitzel.stocks.models.TradingDay.ordering
+import com.github.rgitzel.stocks.models.TradingDayValidation.toIsoTimestampString
 
 import java.time._
 import java.time.format.{DateTimeFormatter, ResolverStyle}
@@ -20,6 +21,8 @@ case class TradingDay(month: Int, day: Int, year: Int) extends Ordered[TradingDa
   TradingDayValidation.ensureIsWeekday(month, day, year)
 
   val isFriday: Boolean = TradingDayValidation.isFriday(month, day, year)
+
+  val dayOfWeek: String = TradingDay.dayOfWeek(month, day, year).toString
 
   override def toString: String = s"${month}/${day}/${year}"
 
@@ -74,6 +77,10 @@ object TradingDay {
     }
     r(relativeTo)
   }
+
+  def dayOfWeek(month: Int, day: Int, year: Int): DayOfWeek =
+  // TODO: standardize on `US/Eastern`
+    Instant.parse(toIsoTimestampString(month, day, year)).atZone(ZoneId.of("UTC")).getDayOfWeek()
 }
 
 object TradingDayValidation {
@@ -105,15 +112,11 @@ object TradingDayValidation {
 
   // https://stackoverflow.com/a/56366534/107444
   def ensureIsWeekday(month: Int, day: Int, year: Int): Unit = {
-    val d = dayOfWeek(month, day, year)
+    val d = TradingDay.dayOfWeek(month, day, year)
     if (d.getValue() > 5)
       throw new IllegalArgumentException(s"'${toIsoDayString(month, day, year)}' is a ${d}")
   }
 
   def isFriday(month: Int, day: Int, year: Int): Boolean =
-    dayOfWeek(month, day, year) == DayOfWeek.FRIDAY
-
-  private def dayOfWeek(month: Int, day: Int, year: Int): DayOfWeek =
-    // TODO: standardize on `US/Eastern`
-    Instant.parse(toIsoTimestampString(month, day, year)).atZone(ZoneId.of("UTC")).getDayOfWeek()
+    TradingDay.dayOfWeek(month, day, year) == DayOfWeek.FRIDAY
 }

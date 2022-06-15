@@ -2,6 +2,7 @@ package com.github.rgitzel.quicken.transactions.parsing
 
 import com.github.rgitzel.stocks.models.TradingDay
 
+import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 object TradingDayParser {
@@ -16,5 +17,5 @@ object TradingDayParser {
     }
   }
 
-  def failure(s: String) = Failure(new IllegalArgumentException(s"invalid date string '${s}'"))
+  def failure(s: String) = Failure(new IllegalArgumentException(s"invalid trading day string '${s}'"))
 }

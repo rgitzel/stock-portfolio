@@ -16,22 +16,31 @@ object GetPortfolioJournalApp extends App {
   def influxDbUrl(): URL = new URL("http://192.168.0.17:8086")
 
   def useInfluxDbClient(influxDBClient: InfluxDBClientScala)(implicit ec: ExecutionContext): Future[_] = {
-    val weeks = TradingWeek(TradingDay(12, 31, 2021)).previousWeeks(1)
+    import Constants._
+
+    val weeks = List(
+      lastTradingWeek2018
+    )
     weeks.foreach(println)
 
-    new QuickenAccountJournalsRepository(new File("./transactions.txt"))
+    new QuickenAccountJournalsRepository(rawQuickenFiles)
       .accountJournals()
+      .andThen {
+        case Failure(t) => println(t.getMessage)
+      }
       .foreach { case journals =>
         weeks.map { week =>
           println()
-          println(s"portfolios as of ${week}")
+          println(s"portfolio journal as of ${week}")
 
-          journals.filter(_.name.s == "RSP")
+          journals
+            .filter(_.name.s == "RSP")
             .foreach{ journal =>
               println(journal.name)
-              journal.transactions
-                .filter(_.stock.symbol == "AAPL")
-                .foreach{ txn => println(s"\t${txn}")}
+              journal.activities
+                .filter(_.tradingDay <= week.friday)
+//                .filter(_.stock.symbol == "AAPL")
+                .foreach{ txn => println(s"\t${txn} ${txn.action.value}")}
               println()
             }
         }

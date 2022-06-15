@@ -16,26 +16,37 @@ object GetPortfolioApp extends App {
   def influxDbUrl(): URL = new URL("http://192.168.0.17:8086")
 
   def useInfluxDbClient(influxDBClient: InfluxDBClientScala)(implicit ec: ExecutionContext): Future[_] = {
-    val weeks = TradingWeek(TradingDay(10, 31, 2011)).previousWeeks(1)
+    import Constants._
+
+    val weeks = List(
+      lastTradingWeek2017,
+      lastTradingWeek2018,
+      lastTradingWeek2019
+    )
     weeks.foreach(println)
 
-    new QuickenAccountJournalsRepository(new File("./transactions.txt"))
+    new QuickenAccountJournalsRepository(rawQuickenFiles)
       .accountJournals()
+      .andThen {
+        case Failure(t) => println(t.getMessage)
+      }
       .foreach { case journals =>
         weeks.map { week =>
           println()
-          println(s"portfolios as of ${week}")
+          println(s"accounts as of ${week}")
 
-          journals.map(_.accountAsOf(week.friday))
-            .foreach{ portfolio =>
-              println(portfolio.name)
-              portfolio.shareCountsForStocksForCurrencies
-                .foreach{ case(currency, holdings) =>
-                  if(holdings.size > 0) {
-                    println(s"\t${currency}")
-                    holdings.foreach{ case(stock, count) => println(s"\t\t${stock.symbol} $count")}
-                  }
+          journals
+            .filter(_.name.s == "RSP")
+            .map { journal =>
+              val account = journal.accountAsOf(week.friday)
+              println(account.name)
+              account.holdingsForCurrencies.foreach{ case(currency, holdings) =>
+                println(s"\t${currency}")
+                println(s"\t\tcash ${holdings.cash}")
+                holdings.stocks.foreach { case (stock, count) =>
+                  println(s"\t\t${stock.symbol} $count")
                 }
+              }
               println()
             }
         }

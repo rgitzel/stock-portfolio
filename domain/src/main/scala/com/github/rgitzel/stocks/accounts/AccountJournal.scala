@@ -1,36 +1,31 @@
 package com.github.rgitzel.stocks.accounts
 
 import com.github.rgitzel.stocks.models.TradingDay
-import com.github.rgitzel.stocks.money.Currency
+import com.github.rgitzel.stocks.money.{CashUtils, Currency}
 
 /*
  * all of the transactions made in this account
  */
-final case class AccountJournal(name: AccountName, transactions: List[AccountActivity]) {
-  val currencies: List[Currency] = transactions.map(_.currency).distinct
+final case class AccountJournal(name: AccountName, activities: List[AccountActivity]) {
+  val currencies: List[Currency] = activities.map(_.currency).distinct
 
-  def accountAsOf(day: TradingDay): AccountHoldings = {
-    val shareCountsForStocks = transactions
-      .filter(_.tradingDay < day)
-      .groupBy(_.currency)
-      .view.mapValues { x =>
-      x.groupBy(_.stock)
-        .view.mapValues { transactions =>
-        transactions.map(_.action).foldLeft(0) { case (numberOfShares, details) =>
-          details match {
-            case StockPurchased(shareCount) =>
-              numberOfShares + shareCount
-            case StockSold(shareCount) =>
-              numberOfShares - shareCount
-            case StockSplit(multiplier) =>
-              numberOfShares * multiplier
-          }
-        }
-      }
-        .filter(_._2 > 0)
-        .toMap
-    }.toMap
-
-    AccountHoldings(name, shareCountsForStocks)
+  def accountAsOf(day: TradingDay): Account = {
+    Account(
+      name,
+      activities
+        .filter(_.tradingDay < day)
+        .groupBy(_.currency).view
+        .map { case (currency, activities) =>
+          val countsAndCashForStocks = activities.groupBy(_.stock)
+            .view.map { case (stock, activitiesForStock) =>
+              val x = AccountActivityAccumulator.accumulatedShareCountAndCash(activitiesForStock)
+//              println(s"${currency} ${stock}\n  ${activitiesForStock.mkString("\n  ")}\n  ${x}")
+              (stock, x)
+            }.toMap
+          val cash = CashUtils.roundedToCents(countsAndCashForStocks.values.map(_.cash).sum)
+          val stocks = countsAndCashForStocks.mapValues(_.numberOfShares).toMap.filter(_._2 > 0)
+          (currency, AccountHoldings(cash, stocks))
+        }.toMap
+    )
   }
 }

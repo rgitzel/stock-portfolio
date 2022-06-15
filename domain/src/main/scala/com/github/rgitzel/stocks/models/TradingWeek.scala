@@ -8,7 +8,7 @@ import java.time.Instant
  */
 case class TradingWeek(friday: TradingDay) {
   if (!friday.isFriday)
-    throw new IllegalArgumentException("trading week must end in a Friday")
+    throw new IllegalArgumentException(s"trading week must end in a Friday (not ${friday.dayOfWeek})")
 
   override def toString: String = s"the week ending ${friday}"
 

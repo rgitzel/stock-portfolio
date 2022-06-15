@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import com.github.rgitzel.influxdb.InfluxDbOperations
 import com.github.rgitzel.quicken.transactions.QuickenAccountJournalsRepository
 import com.github.rgitzel.stocks.PortfolioCalculator
+import com.github.rgitzel.stocks.accounts.AccountJournal
 import com.github.rgitzel.stocks.influxdb.{InfluxDbForexRepository, InfluxDbPortfolioValueRepository, InfluxDbPricesRepository}
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money.Currency
@@ -31,7 +32,7 @@ object UpdatePortfolioValuesApp extends App {
     val pricesRepository = new InfluxDbPricesRepository(influxDb)
     val forexRepository = new InfluxDbForexRepository(influxDb)
     val portfolioValueRepository = new InfluxDbPortfolioValueRepository(influxDb)
-    val transactionsPortfolioRepository = new QuickenAccountJournalsRepository(new File("./transactions.txt"))
+    val transactionsPortfolioRepository = new QuickenAccountJournalsRepository(Constants.rawQuickenFiles)
 
     val portfolioCalculator = new PortfolioCalculator(forexRepository, pricesRepository, desiredCurrency)
 
@@ -42,20 +43,7 @@ object UpdatePortfolioValuesApp extends App {
       }.mkString(", ")
       println(s"loaded ${accountJournals.size} portfolio journals: ${journalsStrings}")
 
-      val weeklyValuationProcessingResults = Future.sequence(
-        weeks.map { week =>
-          portfolioCalculator.valuate(week, accountJournals)
-            // wrap in `Option` so that we don't have to make a fake `PortfolioValuation` just for the `recoverWith` case
-            .map(valuation => Some((week, valuation)))
-            .recoverWith { t =>
-              println(s"WARNING! skipping ${week} due to errors: ${t.getMessage} ")
-              Future.successful(None)
-            }
-        }
-      )
-
-      weeklyValuationProcessingResults
-        .map(_.flatten)
+      portfolioCalculator.valuate(weeks, accountJournals)
         .flatMap{ weeklyValuations =>
           // turn them into something we can write out to the repository
           val weeklyRecords = weeklyValuations.map{ case (week, valuation) =>
@@ -71,10 +59,6 @@ object UpdatePortfolioValuesApp extends App {
         }
     }
   }
-
-
-  // =====================================================================
-
 
   // =====================================
   // =====================================
