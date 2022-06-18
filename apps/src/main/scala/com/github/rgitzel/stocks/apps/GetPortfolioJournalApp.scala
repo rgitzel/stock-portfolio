@@ -3,6 +3,7 @@ package com.github.rgitzel.stocks.apps
 import akka.actor.ActorSystem
 import com.github.rgitzel.quicken.transactions.QuickenAccountJournalsRepository
 import com.github.rgitzel.stocks.models._
+import com.github.rgitzel.stocks.money.Currency
 import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
 
 import java.io.File
@@ -19,7 +20,8 @@ object GetPortfolioJournalApp extends App {
     import Constants._
 
     val weeks = List(
-      lastTradingWeek2018
+      TradingWeek.yearEnd(2008)
+//      lastTradingWeek2018
     )
     weeks.foreach(println)
 
@@ -34,12 +36,12 @@ object GetPortfolioJournalApp extends App {
           println(s"portfolio journal as of ${week}")
 
           journals
-            .filter(_.name.s == "RSP")
+//            .filter(_.name.s == "RSP")
             .foreach{ journal =>
               println(journal.name)
               journal.activities
                 .filter(_.tradingDay <= week.friday)
-//                .filter(_.stock.symbol == "AAPL")
+//                .filter(_.currency == Currency("USD"))
                 .foreach{ txn => println(s"\t${txn} ${txn.action.value}")}
               println()
             }

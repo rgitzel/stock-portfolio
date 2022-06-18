@@ -13,7 +13,7 @@ final case class AccountJournal(name: AccountName, activities: List[AccountActiv
     Account(
       name,
       activities
-        .filter(_.tradingDay < day)
+        .filter(_.tradingDay <= day)
         .groupBy(_.currency).view
         .map { case (currency, activities) =>
           val countsAndCashForStocks = activities.groupBy(_.stock)

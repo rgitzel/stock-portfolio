@@ -39,5 +39,11 @@ object TradingWeek {
 
   def mostRecent(): TradingWeek = mostRecent(Instant.now())
 
-  def mostRecent(relativeTo: Instant): TradingWeek = TradingWeek(TradingDay.previousFriday(relativeTo))
+  def mostRecent(relativeTo: Instant): TradingWeek =
+    TradingWeek(TradingDay.previousFridayIncludingThisDay(relativeTo))
+
+  def yearEnd(year: Int) = {
+    val lastDay = TradingDay.lastOfYear(year)
+    TradingWeek(TradingDay.previousFridayIncludingThisDay(lastDay))
+  }
 }

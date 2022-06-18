@@ -71,7 +71,7 @@ class TradingDaySpec extends AnyFlatSpecLike {
   val saturday = Instant.ofEpochSecond(1654370807L) // Saturday, June 4, 2022 7:26:47 PM
 
   "lastFriday" should "return the Friday before a Saturday" in {
-    TradingDay.previousFriday(saturday) should be (previousFriday)
+    TradingDay.previousFridayIncludingThisDay(saturday) should be (previousFriday)
   }
 
   List(
@@ -82,12 +82,21 @@ class TradingDaySpec extends AnyFlatSpecLike {
     (saturday.plus(5, ChronoUnit.DAYS), "Thursday")
   ).foreach{ case (ts, label) =>
     it should s"return the Friday before a ${label}" in {
-      TradingDay.previousFriday(ts) should be (previousFriday)
+      TradingDay.previousFridayIncludingThisDay(ts) should be (previousFriday)
     }
   }
 
   // TODO: should worry about the exact time
   it should s"return the same day on a Friday" in {
-    TradingDay.previousFriday(saturday.plus(6, ChronoUnit.DAYS)) should be (previousFriday.plus(7))
+    TradingDay.previousFridayIncludingThisDay(saturday.plus(6, ChronoUnit.DAYS)) should be (previousFriday.plus(7))
+  }
+
+  val friday = TradingDay(12, 27, 2019)
+  "previousFridayIncludingThisDay" should "return this day if it's a Friday" in {
+    TradingDay.previousFridayIncludingThisDay(friday) should be (friday)
+  }
+
+  "previousFridayIncludingThisDay" should "return the previous Friday if this day is not a Friday" in {
+    TradingDay.previousFridayIncludingThisDay(TradingDay(12, 30, 2019)) should be (friday)
   }
 }

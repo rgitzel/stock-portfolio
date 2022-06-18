@@ -13,7 +13,7 @@ object QuickenTransactionParser {
       case "" =>
         failure(s, "empty string")
       case trimmed =>
-        trimmed.split(" ", 6).toList match {
+        trimmed.split("\\|", 6).toList match {
           case List(portfolio, currency, symbol, day, action, arguments) =>
             (TradingDayParser.fromString(day), QuickenTransactionDetailsParser.fromStrings(action, arguments)) match {
               case (Success(tradingDay), Success(details)) =>

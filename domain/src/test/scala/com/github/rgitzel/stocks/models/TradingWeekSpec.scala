@@ -15,4 +15,15 @@ class TradingWeekSpec extends AnyFlatSpecLike {
     val w3 = w2.followingWeek
     w.to(w3) should be (List(w, w2, w3))
   }
+
+  List(
+    (2017, TradingWeek(12, 29, 2017)),
+    (2018, TradingWeek(12, 28, 2018)),
+    (2019, TradingWeek(12, 27, 2019))
+  )
+    .foreach{ case (year, expectedWeek) =>
+      "yearEnd" should s"return the right week for ${year}" in {
+        TradingWeek.yearEnd(year) should be (expectedWeek)
+      }
+    }
 }

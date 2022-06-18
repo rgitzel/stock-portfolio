@@ -10,7 +10,8 @@ object TradingDayParser {
   def fromString(s: String): Try[TradingDay] = {
     s.split('/').toList match {
       case List(month, day, year) =>
-        Try(TradingDay(month.toInt, day.toInt, ("20" + year).toInt))
+        val yearPrefix = if (year.toInt > 90) "19" else "20"
+        Try(TradingDay(month.toInt, day.toInt, (yearPrefix + year).toInt))
           .recoverWith { _ => failure(s) }
       case _ =>
         failure(s)

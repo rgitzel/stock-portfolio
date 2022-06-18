@@ -19,9 +19,10 @@ object GetPortfolioApp extends App {
     import Constants._
 
     val weeks = List(
-      lastTradingWeek2017,
-      lastTradingWeek2018,
-      lastTradingWeek2019
+      TradingWeek.yearEnd(2021 )
+//      lastTradingWeek2017,
+//      lastTradingWeek2018,
+//      lastTradingWeek2019
     )
     weeks.foreach(println)
 
@@ -36,7 +37,7 @@ object GetPortfolioApp extends App {
           println(s"accounts as of ${week}")
 
           journals
-            .filter(_.name.s == "RSP")
+//            .filter(_.name.s == "RSP")
             .map { journal =>
               val account = journal.accountAsOf(week.friday)
               println(account.name)
