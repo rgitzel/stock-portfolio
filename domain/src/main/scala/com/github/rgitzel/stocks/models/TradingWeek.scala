@@ -8,7 +8,9 @@ import java.time.Instant
  */
 case class TradingWeek(friday: TradingDay) {
   if (!friday.isFriday)
-    throw new IllegalArgumentException(s"trading week must end in a Friday (not ${friday.dayOfWeek})")
+    throw new IllegalArgumentException(
+      s"trading week must end in a Friday (not ${friday.dayOfWeek})"
+    )
 
   override def toString: String = s"the week ending ${friday}"
 
@@ -19,11 +21,16 @@ case class TradingWeek(friday: TradingDay) {
 
   // inclusive
   def previousWeeks(n: Int): List[TradingWeek] =
-    1.until(n).foldLeft(List(this)){ case (accumulated, _) => accumulated.head.previousWeek +: accumulated }
+    1.until(n).foldLeft(List(this)) { case (accumulated, _) =>
+      accumulated.head.previousWeek +: accumulated
+    }
 
   // also inclusive
   def to(endingWeek: TradingWeek): List[TradingWeek] = {
-    def r(accumulated: List[TradingWeek], candidate: TradingWeek): List[TradingWeek] = {
+    def r(
+        accumulated: List[TradingWeek],
+        candidate: TradingWeek
+    ): List[TradingWeek] = {
       if (candidate.friday > endingWeek.friday)
         accumulated
       else

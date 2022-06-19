@@ -1,7 +1,10 @@
 package com.github.rgitzel.stocks.models
 
 import com.github.rgitzel.stocks.models.TradingDay.ordering
-import com.github.rgitzel.stocks.models.TradingDayValidation.{isMonday, toIsoTimestampString}
+import com.github.rgitzel.stocks.models.TradingDayValidation.{
+  isMonday,
+  toIsoTimestampString
+}
 
 import java.time._
 import java.time.format.{DateTimeFormatter, ResolverStyle}
@@ -16,7 +19,8 @@ import scala.util.control.NonFatal
  * notes:
  *  - `month` is 1-indexed
  */
-case class TradingDay(month: Int, day: Int, year: Int) extends Ordered[TradingDay] {
+case class TradingDay(month: Int, day: Int, year: Int)
+    extends Ordered[TradingDay] {
   TradingDayValidation.ensureDayIsPossible(month, day, year)
   TradingDayValidation.ensureIsWeekday(month, day, year)
 
@@ -40,7 +44,6 @@ case class TradingDay(month: Int, day: Int, year: Int) extends Ordered[TradingDa
   override def compare(that: TradingDay): Int = ordering.compare(this, that)
 }
 
-
 object TradingDay {
   implicit val ordering: Ordering[TradingDay] = new Ordering[TradingDay] {
     override def compare(x: TradingDay, y: TradingDay): Int =
@@ -58,7 +61,13 @@ object TradingDay {
   }
 
   def toInstant(tradingDay: TradingDay): Instant =
-    Instant.parse(TradingDayValidation.toIsoTimestampString(tradingDay.month, tradingDay.day, tradingDay.year))
+    Instant.parse(
+      TradingDayValidation.toIsoTimestampString(
+        tradingDay.month,
+        tradingDay.day,
+        tradingDay.year
+      )
+    )
 
   def apply(ts: Instant): TradingDay = {
     // ay carumba, do Java time classes need to be so... unexpected?
@@ -99,8 +108,11 @@ object TradingDay {
     previousFridayIncludingThisDay(relativeTo.minus(1, ChronoUnit.DAYS))
 
   def dayOfWeek(month: Int, day: Int, year: Int): DayOfWeek =
-  // TODO: standardize on `US/Eastern`
-    Instant.parse(toIsoTimestampString(month, day, year)).atZone(ZoneId.of("UTC")).getDayOfWeek()
+    // TODO: standardize on `US/Eastern`
+    Instant
+      .parse(toIsoTimestampString(month, day, year))
+      .atZone(ZoneId.of("UTC"))
+      .getDayOfWeek()
 
   def lastOfYear(year: Int): TradingDay = {
     def r(candidateDay: Int): TradingDay = {
@@ -117,8 +129,8 @@ object TradingDay {
 
 object TradingDayValidation {
   def toIsoDayString(month: Int, day: Int, year: Int): String = {
-    val monthPrefix = if(month < 10) "0" else ""
-    val dayPrefix = if(day < 10) "0" else ""
+    val monthPrefix = if (month < 10) "0" else ""
+    val dayPrefix = if (day < 10) "0" else ""
     s"${year}-${monthPrefix}${month}-${dayPrefix}${day}"
   }
 
@@ -129,15 +141,17 @@ object TradingDayValidation {
   }
 
   // https://stackoverflow.com/a/39649815/107444
-  private val f = DateTimeFormatter.ofPattern ( "uuuu-MM-dd" ).withResolverStyle ( ResolverStyle.STRICT )
+  private val f = DateTimeFormatter
+    .ofPattern("uuuu-MM-dd")
+    .withResolverStyle(ResolverStyle.STRICT)
 
   def ensureDayIsPossible(month: Int, day: Int, year: Int): Unit = {
     val s = toIsoDayString(month, day, year)
     try {
       f.parse(s)
       ()
-    }
-    catch { case NonFatal(_) =>
+    } catch {
+      case NonFatal(_) =>
         throw new IllegalArgumentException(s"invalid day '${day}")
     }
   }
@@ -146,9 +160,10 @@ object TradingDayValidation {
   def ensureIsWeekday(month: Int, day: Int, year: Int): Unit = {
     val d = TradingDay.dayOfWeek(month, day, year)
     if (d.getValue() > 5)
-      throw new IllegalArgumentException(s"'${toIsoDayString(month, day, year)}' is a ${d}")
+      throw new IllegalArgumentException(
+        s"'${toIsoDayString(month, day, year)}' is a ${d}"
+      )
   }
-
 
   def isMonday(month: Int, day: Int, year: Int): Boolean =
     TradingDay.dayOfWeek(month, day, year) == DayOfWeek.MONDAY

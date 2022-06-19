@@ -1,11 +1,14 @@
 package com.github.rgitzel.stocks.money
 
-class MoneyConverter(conversions: Map[ConversionCurrencies,Double]) {
-  if(conversions.isEmpty) throw new IllegalArgumentException("MoneyConverter provided with empty list of conversions")
+class MoneyConverter(conversions: Map[ConversionCurrencies, Double]) {
+  if (conversions.isEmpty)
+    throw new IllegalArgumentException(
+      "MoneyConverter provided with empty list of conversions"
+    )
 
   def convert(money: MonetaryValue, to: Currency): Option[MonetaryValue] = {
     val from = money.currency
-    if(from == to) {
+    if (from == to) {
       // nothing to do
       Some(money)
     } else {

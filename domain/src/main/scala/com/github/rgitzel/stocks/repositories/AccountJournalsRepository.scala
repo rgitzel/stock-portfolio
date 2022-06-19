@@ -6,5 +6,7 @@ import com.github.rgitzel.stocks.models._
 import scala.concurrent.{ExecutionContext, Future}
 
 trait AccountJournalsRepository {
-  def accountJournals()(implicit ec: ExecutionContext): Future[List[AccountJournal]]
+  def accountJournals()(implicit
+      ec: ExecutionContext
+  ): Future[List[AccountJournal]]
 }

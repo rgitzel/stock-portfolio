@@ -4,7 +4,9 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 object AccountActivityAccumulator {
-  def accumulatedShareCountAndCash(activities: List[AccountActivity]): AccountBalance =
+  def accumulatedShareCountAndCash(
+      activities: List[AccountActivity]
+  ): AccountBalance =
     activities
       .sortBy(_.tradingDay)
       .map(_.action)
@@ -21,16 +23,18 @@ object AccountActivityAccumulator {
             case _ =>
           }
           newBalance
-        }
-          .recover{
-            case NonFatal(t) =>
-              println(s"ignoring failed transaction '$transaction': ${t.getMessage}")
-              balanceSoFar
-          }
-          .get
+        }.recover { case NonFatal(t) =>
+          println(
+            s"ignoring failed transaction '$transaction': ${t.getMessage}"
+          )
+          balanceSoFar
+        }.get
       }
 
-  private def updateBalance(balanceSoFar: AccountBalance, transaction: AccountTransaction) =
+  private def updateBalance(
+      balanceSoFar: AccountBalance,
+      transaction: AccountTransaction
+  ) =
     transaction match {
       case Deposit(value) =>
         balanceSoFar

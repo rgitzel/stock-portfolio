@@ -18,5 +18,7 @@ object TradingDayParser {
     }
   }
 
-  def failure(s: String) = Failure(new IllegalArgumentException(s"invalid trading day string '${s}'"))
+  def failure(s: String) = Failure(
+    new IllegalArgumentException(s"invalid trading day string '${s}'")
+  )
 }

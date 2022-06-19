@@ -1,13 +1,19 @@
 package com.github.rgitzel.quicken.transactions.parsing
 
-import com.github.rgitzel.stocks.accounts.{AccountActivity, AccountName, AccountTransaction}
+import com.github.rgitzel.stocks.accounts.{
+  AccountActivity,
+  AccountName,
+  AccountTransaction
+}
 
 import scala.collection.immutable.::
 import scala.util.{Success, Try}
 
 object QuickenReportLines {
 
-  def extractActivities(exportedLines: List[String]): List[Try[(AccountName,AccountActivity)]] = {
+  def extractActivities(
+      exportedLines: List[String]
+  ): List[Try[(AccountName, AccountActivity)]] = {
     processRawLines(exportedLines).map(QuickenTransactionParser.fromString)
   }
 
@@ -49,24 +55,27 @@ object QuickenReportLines {
           || line.contains("Account")
       )
       .map(
-        _.split('\t')
-          .toList
+        _.split('\t').toList
       )
 
     val y = x.map(list =>
-      list.slice(1, list.size - 1) // first is always empty (?) and last is some weird number
+      list.slice(
+        1,
+        list.size - 1
+      ) // first is always empty (?) and last is some weird number
     )
-    val useful =  y.filter(_.nonEmpty)
+    val useful = y.filter(_.nonEmpty)
 //    useful.foreach{ xs =>
 //        println(s"${xs.size}: '${xs.mkString("|")}'")
 //      }
 
-    val squished = useful.foldLeft(List[List[String]]()) { case (lines, line) =>
-      if (line.head == "")
-        (lines.head ++ line) +: lines.tail
-      else
-        line +: lines
-    }
+    val squished = useful
+      .foldLeft(List[List[String]]()) { case (lines, line) =>
+        if (line.head == "")
+          (lines.head ++ line) +: lines.tail
+        else
+          line +: lines
+      }
       .reverse
     //        squished.foreach{ xs =>
     //          println(s"${xs.size}: '${xs.mkString("|")}'")
@@ -84,13 +93,13 @@ object QuickenReportLines {
       }
 
     val brokenUp = cleaned
-      .flatMap { parseAction}
+      .flatMap { parseAction }
 
     brokenUp.map(_.mkString("|"))
   }
 
   // "TFSA - USD" -> ("TFSA", "USD")
-  def splitAccountAndCurrency(s: String): (String,String) = {
+  def splitAccountAndCurrency(s: String): (String, String) = {
     s.split(" - ", 2).toList match {
       case account :: currency :: Nil =>
         (account, currency)
@@ -102,28 +111,72 @@ object QuickenReportLines {
   def parseAction(x: List[String]) =
     x match {
       case date :: accountAndCurrency :: action :: stockName :: arguments =>
-        val symbol = stockSymbolsForNames.getOrElse(stockName, stockName.replaceAll(" ", ""))
+        val symbol = stockSymbolsForNames.getOrElse(
+          stockName,
+          stockName.replaceAll(" ", "")
+        )
         val (account, currency) = splitAccountAndCurrency(accountAndCurrency)
         (action, arguments) match {
           // buy
-          case ("Bought" | "Sold", price :: amount :: commission :: total :: Nil) =>
-            Some(List(account, currency, symbol, date, action, amount, price, commission, total, "0.0"))
+          case (
+                "Bought" | "Sold",
+                price :: amount :: commission :: total :: Nil
+              ) =>
+            Some(
+              List(
+                account,
+                currency,
+                symbol,
+                date,
+                action,
+                amount,
+                price,
+                commission,
+                total,
+                "0.0"
+              )
+            )
           // sales almost always have a second line, and sometimes purchases do too
-          case ("Bought" | "Sold", price :: amount :: commission :: total :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: adjustment :: Nil) =>
-            Some(List(account, currency, symbol, date, action, amount, price, commission, total, adjustment))
+          case (
+                "Bought" | "Sold",
+                price :: amount :: commission :: total :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: adjustment :: Nil
+              ) =>
+            Some(
+              List(
+                account,
+                currency,
+                symbol,
+                date,
+                action,
+                amount,
+                price,
+                commission,
+                total,
+                adjustment
+              )
+            )
           // transfer _shares_ from another account
           case ("Added", _ :: amount :: _ :: _ :: Nil) =>
             Some(List(account, currency, symbol, date, action, amount))
-          case ("Added" | "Removed", _ :: amount :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: Nil) =>
+          case (
+                "Added" | "Removed",
+                _ :: amount :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: Nil
+              ) =>
             Some(List(account, currency, symbol, date, action, amount))
           // stock split
           case ("StkSplit", _ :: ratio :: _ :: _ :: Nil) =>
             Some(List(account, currency, symbol, date, action, ratio))
           // dividends
-          case ("CGShort" | "CGMid" | "CGLong" | "Div", _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: amount :: Nil) =>
+          case (
+                "CGShort" | "CGMid" | "CGLong" | "Div",
+                _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: amount :: Nil
+              ) =>
             Some(List(account, currency, symbol, date, action, amount))
           // interest and other cash things that use two lines... TODO: model these separately?
-          case ("IntInc" | "MiscExp" | "MiscInc", _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: amount :: Nil) =>
+          case (
+                "IntInc" | "MiscExp" | "MiscInc",
+                _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: amount :: Nil
+              ) =>
             Some(List(account, currency, symbol, date, action, amount))
           // these use just a single line
           case ("Cash" | "XIn" | "XOut", _ :: _ :: _ :: amount :: Nil) =>

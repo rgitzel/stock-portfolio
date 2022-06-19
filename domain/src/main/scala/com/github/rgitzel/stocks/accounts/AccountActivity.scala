@@ -6,4 +6,9 @@ import com.github.rgitzel.stocks.money.Currency
 /*
  * note that the same stock can exist in an account under multiple currencies
  */
-final case class AccountActivity(tradingDay: TradingDay, stock: Stock, currency: Currency, action: AccountTransaction)
+final case class AccountActivity(
+    tradingDay: TradingDay,
+    stock: Stock,
+    currency: Currency,
+    action: AccountTransaction
+)

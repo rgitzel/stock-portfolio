@@ -4,7 +4,10 @@ import akka.actor.ActorSystem
 import com.github.rgitzel.quicken.transactions.QuickenAccountJournalsRepository
 import com.github.rgitzel.stocks.models._
 import com.github.rgitzel.stocks.money.Currency
-import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
+import com.influxdb.client.scala.{
+  InfluxDBClientScala,
+  InfluxDBClientScalaFactory
+}
 
 import java.io.File
 import java.net.URL
@@ -16,7 +19,9 @@ import scala.util.{Failure, Success}
 object GetPortfolioJournalApp extends App {
   def influxDbUrl(): URL = new URL("http://192.168.0.17:8086")
 
-  def useInfluxDbClient(influxDBClient: InfluxDBClientScala)(implicit ec: ExecutionContext): Future[_] = {
+  def useInfluxDbClient(
+      influxDBClient: InfluxDBClientScala
+  )(implicit ec: ExecutionContext): Future[_] = {
     import Constants._
 
     val weeks = List(
@@ -27,8 +32,8 @@ object GetPortfolioJournalApp extends App {
 
     new QuickenAccountJournalsRepository(rawQuickenFiles)
       .accountJournals()
-      .andThen {
-        case Failure(t) => println(t.getMessage)
+      .andThen { case Failure(t) =>
+        println(t.getMessage)
       }
       .foreach { case journals =>
         weeks.map { week =>
@@ -37,12 +42,12 @@ object GetPortfolioJournalApp extends App {
 
           journals
 //            .filter(_.name.s == "RSP")
-            .foreach{ journal =>
+            .foreach { journal =>
               println(journal.name)
               journal.activities
                 .filter(_.tradingDay <= week.friday)
 //                .filter(_.currency == Currency("USD"))
-                .foreach{ txn => println(s"\t${txn} ${txn.action.value}")}
+                .foreach { txn => println(s"\t${txn} ${txn.action.value}") }
               println()
             }
         }
@@ -50,7 +55,6 @@ object GetPortfolioJournalApp extends App {
 
     Future.successful(())
   }
-
 
   // =====================================
   // =====================================
@@ -70,14 +74,13 @@ object GetPortfolioJournalApp extends App {
     .create(influxDbUrl().toExternalForm, "".toCharArray, "foo")
 
   try {
-    if(!influxDBClient.ping) {
+    if (!influxDBClient.ping) {
       println("failed to connect to InfluxDb!")
-    }
-    else {
+    } else {
       println("connected to InfluxDb successfully")
 
       val result = useInfluxDbClient(influxDBClient)(global)
-          .andThen {
+        .andThen {
           case Success(_) =>
             println("finished successfully")
           case Failure(t) =>
@@ -86,8 +89,7 @@ object GetPortfolioJournalApp extends App {
 
       Await.result(result, 10.seconds)
     }
-  }
-  finally {
+  } finally {
     influxDBClient.close()
     system.terminate()
   }

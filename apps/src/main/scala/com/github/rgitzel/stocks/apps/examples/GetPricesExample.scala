@@ -16,7 +16,9 @@ object GetPricesExample extends InfluxDbExample {
 
   def main(args: Array[String]): Unit = {
 
-    val repository = new InfluxDbPricesRepository(new InfluxDbOperations(influxDBClient))
+    val repository = new InfluxDbPricesRepository(
+      new InfluxDbOperations(influxDBClient)
+    )
 
     // tricky examples are Good Friday (no prices) and Christmas Eve (no US prices);
     //  we should get fewer (or no) prices for the day, but should for the week
@@ -24,8 +26,8 @@ object GetPricesExample extends InfluxDbExample {
 //    val day = TradingDay(12, 24, 2021)
     val day = TradingDay(5, 27, 2022)
 
-    val f = repository.dailyClosingPrices(day).flatMap{ daily =>
-      repository.weeklyClosingPrices(TradingWeek(day)).map{ weekly =>
+    val f = repository.dailyClosingPrices(day).flatMap { daily =>
+      repository.weeklyClosingPrices(TradingWeek(day)).map { weekly =>
         println(s"day (${daily.size})")
         daily.toList.sortBy(_._1.symbol).foreach(println)
         println(s"week (${weekly.size})")

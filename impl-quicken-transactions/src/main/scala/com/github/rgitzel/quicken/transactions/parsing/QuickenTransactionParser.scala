@@ -15,17 +15,22 @@ object QuickenTransactionParser {
       case trimmed =>
         trimmed.split("\\|", 6).toList match {
           case List(portfolio, currency, symbol, day, action, arguments) =>
-            (TradingDayParser.fromString(day), QuickenTransactionDetailsParser.fromStrings(action, arguments)) match {
+            (
+              TradingDayParser.fromString(day),
+              QuickenTransactionDetailsParser.fromStrings(action, arguments)
+            ) match {
               case (Success(tradingDay), Success(details)) =>
-                Success((
-                  AccountName(portfolio),
-                  AccountActivity(
-                    tradingDay,
-                    Stock(symbol),
-                    Currency(currency),
-                    details
+                Success(
+                  (
+                    AccountName(portfolio),
+                    AccountActivity(
+                      tradingDay,
+                      Stock(symbol),
+                      Currency(currency),
+                      details
+                    )
                   )
-                ))
+                )
               case (Failure(t), _) =>
                 failure(s, t.getMessage)
               case (_, Failure(t)) =>
@@ -38,5 +43,7 @@ object QuickenTransactionParser {
   }
 
   def failure(s: String, reason: String) =
-    Failure(new IllegalArgumentException(s"invalid transaction '${s}' (${reason})"))
+    Failure(
+      new IllegalArgumentException(s"invalid transaction '${s}' (${reason})")
+    )
 }

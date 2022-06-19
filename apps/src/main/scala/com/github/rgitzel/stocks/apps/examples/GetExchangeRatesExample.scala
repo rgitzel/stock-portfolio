@@ -16,15 +16,16 @@ object GetExchangeRatesExample extends InfluxDbExample {
 
   def main(args: Array[String]): Unit = {
 
-    val repository = new InfluxDbForexRepository(new InfluxDbOperations(influxDBClient))
+    val repository = new InfluxDbForexRepository(
+      new InfluxDbOperations(influxDBClient)
+    )
 
     val day = TradingDay(4, 15, 2022)
 
     val results = for {
       byDay <- repository.dailyClosingRates(day)
       byWeek <- repository.weeklyClosingRates(TradingWeek(day))
-    }
-    yield (byDay, byWeek)
+    } yield (byDay, byWeek)
 
     val (daily, weekly) = Await.result(results, Duration.Inf)
     println("day")

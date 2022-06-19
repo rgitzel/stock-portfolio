@@ -17,9 +17,15 @@ object UpdatePriceExample extends InfluxDbExample {
 
   def main(args: Array[String]): Unit = {
 
-    val repository = new InfluxDbPricesRepository(new InfluxDbOperations(influxDBClient))
+    val repository = new InfluxDbPricesRepository(
+      new InfluxDbOperations(influxDBClient)
+    )
 
-    val results = repository.updateClosingPrice(TradingDay(5, 13, 2022), Stock("GOOGL"), MonetaryValue(101.0, Currency("CAD")))(global)
+    val results = repository.updateClosingPrice(
+      TradingDay(5, 13, 2022),
+      Stock("GOOGL"),
+      MonetaryValue(101.0, Currency("CAD"))
+    )(global)
 
     Await.result(results, Duration.Inf)
 

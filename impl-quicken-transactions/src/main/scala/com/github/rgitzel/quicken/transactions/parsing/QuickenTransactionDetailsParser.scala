@@ -1,7 +1,18 @@
 package com.github.rgitzel.quicken.transactions.parsing
 
-import com.github.rgitzel.quicken.transactions.parsing.QuickenTransactionDetailsParser.{asDouble, asInt}
-import com.github.rgitzel.stocks.accounts.{AccountTransaction, Deposit, Dividend, StockPurchased, StockSold, StockSplit, Withdrawal}
+import com.github.rgitzel.quicken.transactions.parsing.QuickenTransactionDetailsParser.{
+  asDouble,
+  asInt
+}
+import com.github.rgitzel.stocks.accounts.{
+  AccountTransaction,
+  Deposit,
+  Dividend,
+  StockPurchased,
+  StockSold,
+  StockSplit,
+  Withdrawal
+}
 
 import scala.util.{Failure, Success, Try}
 
@@ -30,11 +41,27 @@ object QuickenTransactionDetailsParser {
             // Quicken makes the count _negative_, but we want it positive
             asInt(s1) match {
               case Success(count) =>
-                (asDouble(s2), asDoubleOrZero(s3), asDouble(s4), asDouble(s5)) match {
-                  case (Success(price), Success(commission), Success(total), Success(adjustment)) =>
-                    val actualPrice = (-(total + adjustment) - commission) / count
+                (
+                  asDouble(s2),
+                  asDoubleOrZero(s3),
+                  asDouble(s4),
+                  asDouble(s5)
+                ) match {
+                  case (
+                        Success(price),
+                        Success(commission),
+                        Success(total),
+                        Success(adjustment)
+                      ) =>
+                    val actualPrice =
+                      (-(total + adjustment) - commission) / count
                     Success(StockPurchased(count, actualPrice, commission))
-                  case (Success(price), Success(commission), Success(total), _) =>
+                  case (
+                        Success(price),
+                        Success(commission),
+                        Success(total),
+                        _
+                      ) =>
                     val actualPrice = (-total - commission) / count
                     Success(StockPurchased(count, actualPrice, commission))
                   case (Success(price), _, _, _) =>
@@ -62,12 +89,22 @@ object QuickenTransactionDetailsParser {
             asInt(s1).map(_ * -1) match {
               case Success(count) =>
                 (asDouble(s2), asDouble(s3), asDouble(s4), asDouble(s5)) match {
-                  case (Success(price), Success(commission), Success(total), Success(adjustment)) =>
+                  case (
+                        Success(price),
+                        Success(commission),
+                        Success(total),
+                        Success(adjustment)
+                      ) =>
                     val actualPrice = (total + adjustment + commission) / count
                     //                if (actualPrice != price)
                     //                  println(s"price difference ${actualPrice} vs ${price}")
                     Success(StockSold(count, actualPrice, commission))
-                  case (Success(price), Success(commission), Success(total), _) =>
+                  case (
+                        Success(price),
+                        Success(commission),
+                        Success(total),
+                        _
+                      ) =>
                     val actualPrice = (total + commission) / count
                     //                if (actualPrice != price)
                     //                  println(s"price difference ${actualPrice} vs ${price}")
@@ -111,7 +148,11 @@ object QuickenTransactionDetailsParser {
             failedValue(argument)
         }
       case otherwise =>
-        Failure(new IllegalArgumentException(s"unrecognized transaction type '${otherwise}'"))
+        Failure(
+          new IllegalArgumentException(
+            s"unrecognized transaction type '${otherwise}'"
+          )
+        )
     }
   }
 
@@ -128,5 +169,7 @@ object QuickenTransactionDetailsParser {
       .recoverWith { _ => Success(0.0) }
 
   def failedValue(value: String) =
-    Failure(new IllegalArgumentException(s"invalid transaction argument '${value}'"))
+    Failure(
+      new IllegalArgumentException(s"invalid transaction argument '${value}'")
+    )
 }

@@ -3,9 +3,11 @@ package com.github.rgitzel.stocks.apps
 import akka.actor.ActorSystem
 import com.github.rgitzel.quicken.transactions.QuickenAccountJournalsRepository
 import com.github.rgitzel.stocks.models._
-import com.influxdb.client.scala.{InfluxDBClientScala, InfluxDBClientScalaFactory}
+import com.influxdb.client.scala.{
+  InfluxDBClientScala,
+  InfluxDBClientScalaFactory
+}
 
-import java.io.File
 import java.net.URL
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration.DurationInt
@@ -15,11 +17,13 @@ import scala.util.{Failure, Success}
 object GetPortfolioApp extends App {
   def influxDbUrl(): URL = new URL("http://192.168.0.17:8086")
 
-  def useInfluxDbClient(influxDBClient: InfluxDBClientScala)(implicit ec: ExecutionContext): Future[_] = {
+  def useInfluxDbClient(
+      influxDBClient: InfluxDBClientScala
+  )(implicit ec: ExecutionContext): Future[_] = {
     import Constants._
 
     val weeks = List(
-      TradingWeek.yearEnd(2021 )
+      TradingWeek.yearEnd(2021)
 //      lastTradingWeek2017,
 //      lastTradingWeek2018,
 //      lastTradingWeek2019
@@ -28,8 +32,8 @@ object GetPortfolioApp extends App {
 
     new QuickenAccountJournalsRepository(rawQuickenFiles)
       .accountJournals()
-      .andThen {
-        case Failure(t) => println(t.getMessage)
+      .andThen { case Failure(t) =>
+        println(t.getMessage)
       }
       .foreach { case journals =>
         weeks.map { week =>
@@ -41,12 +45,13 @@ object GetPortfolioApp extends App {
             .map { journal =>
               val account = journal.accountAsOf(week.friday)
               println(account.name)
-              account.holdingsForCurrencies.foreach{ case(currency, holdings) =>
-                println(s"\t${currency}")
-                println(s"\t\tcash ${holdings.cash}")
-                holdings.stocks.foreach { case (stock, count) =>
-                  println(s"\t\t${stock.symbol} $count")
-                }
+              account.holdingsForCurrencies.foreach {
+                case (currency, holdings) =>
+                  println(s"\t${currency}")
+                  println(s"\t\tcash ${holdings.cash}")
+                  holdings.stocks.foreach { case (stock, count) =>
+                    println(s"\t\t${stock.symbol} $count")
+                  }
               }
               println()
             }
@@ -55,7 +60,6 @@ object GetPortfolioApp extends App {
 
     Future.successful(())
   }
-
 
   // =====================================
   // =====================================
@@ -75,14 +79,13 @@ object GetPortfolioApp extends App {
     .create(influxDbUrl().toExternalForm, "".toCharArray, "foo")
 
   try {
-    if(!influxDBClient.ping) {
+    if (!influxDBClient.ping) {
       println("failed to connect to InfluxDb!")
-    }
-    else {
+    } else {
       println("connected to InfluxDb successfully")
 
       val result = useInfluxDbClient(influxDBClient)(global)
-          .andThen {
+        .andThen {
           case Success(_) =>
             println("finished successfully")
           case Failure(t) =>
@@ -91,8 +94,7 @@ object GetPortfolioApp extends App {
 
       Await.result(result, 10.seconds)
     }
-  }
-  finally {
+  } finally {
     influxDBClient.close()
     system.terminate()
   }

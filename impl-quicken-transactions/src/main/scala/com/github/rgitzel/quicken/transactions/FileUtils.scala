@@ -12,7 +12,13 @@ object FileUtils {
       bufferedSource.close
       lines
     }
-      .recoverWith(t => Failure(new Exception(s"failed to read file '${file.getName}': ${t.getMessage}")))
+      .recoverWith(t =>
+        Failure(
+          new Exception(
+            s"failed to read file '${file.getName}': ${t.getMessage}"
+          )
+        )
+      )
 
   def linesFromResourcePathFile(name: String): Try[List[String]] =
     this.getClass.getClassLoader.getResource(name) match {

@@ -7,6 +7,8 @@ import scala.util.control.NonFatal
 
 object ReadQuickenFile extends App {
   new QuickenAccountJournalsRepository(List())
-    .readQuickenFile(new File("/Users/rodney/VirtualBox VMs/shared/investments-cad.txt"))
-    .recover{ case NonFatal(t) => println(t.getMessage) }
+    .readQuickenFile(
+      new File("/Users/rodney/VirtualBox VMs/shared/investments-cad.txt")
+    )
+    .recover { case NonFatal(t) => println(t.getMessage) }
 }

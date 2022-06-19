@@ -56,15 +56,16 @@ class AccountJournalSpec extends AnyFlatSpecLike {
   )
 
   "just one stock and currency" should s"be empty before any transactions" in {
-    journalWithOneStock.accountAsOf( TradingDay(9, 1, 2017)) should be (Account(name, Map()))
+    journalWithOneStock.accountAsOf(TradingDay(9, 1, 2017)) should be (Account(name, Map()))
   }
 
   List(
     ("after two purchases", TradingDay(11, 1, 2017), AccountHoldings(-605.0, Map(stockA -> 500))),
     ("after first sale", TradingDay(3, 29, 2019), AccountHoldings(291.0, Map(stockA -> 200))),
-    ("day of next purchase", TradingDay(12, 1, 2021), AccountHoldings(291.0, Map(stockA -> 200))),
-    ("day of split", TradingDay(12, 15, 2021), AccountHoldings(87.0, Map(stockA -> 400))),
-    ("day after split", TradingDay(12, 16, 2021), AccountHoldings(87.0, Map(stockA -> 1200))),
+    ("day before next purchase", TradingDay(11, 30, 2021), AccountHoldings(291.0, Map(stockA -> 200))),
+    ("day of next purchase", TradingDay(12, 1, 2021), AccountHoldings(87.0, Map(stockA -> 400))),
+    ("day before split", TradingDay(12, 14, 2021), AccountHoldings(87.0, Map(stockA -> 400))),
+    ("day of split", TradingDay(12, 15, 2021), AccountHoldings(87.0, Map(stockA -> 1200))),
     ("after selling some", TradingDay(3, 30, 2022), AccountHoldings(382.0, Map(stockA -> 900))),
   )
     .foreach{ case (reason, day, expectedHoldings) =>
@@ -94,8 +95,10 @@ class AccountJournalSpec extends AnyFlatSpecLike {
   List(
     ("after two purchases", TradingDay(11, 1, 2017), AccountHoldings(-605.0, Map(stockA -> 400, stockB -> 100))),
     ("after first sale", TradingDay(3, 29, 2019), AccountHoldings(291.0, Map(stockA -> 100, stockB -> 100))),
-    ("day of next purchase", TradingDay(12, 1, 2021), AccountHoldings(291.0, Map(stockA -> 100, stockB -> 100))),
-    ("day of split", TradingDay(12, 15, 2021), AccountHoldings(87.0, Map(stockA -> 100, stockB -> 100, stockC -> 200))),
+    ("day before next purchase", TradingDay(11, 30, 2021), AccountHoldings(291.0, Map(stockA -> 100, stockB -> 100))),
+    ("day of next purchase", TradingDay(12, 1, 2021), AccountHoldings(87.0, Map(stockA -> 100, stockB -> 100, stockC -> 200))),
+    ("day before split", TradingDay(12, 14, 2021), AccountHoldings(87.0, Map(stockA -> 100, stockB -> 100, stockC -> 200))),
+    ("day of split", TradingDay(12, 15, 2021), AccountHoldings(87.0, Map(stockA -> 100, stockB -> 300, stockC -> 200))),
     ("day after split", TradingDay(12, 16, 2021), AccountHoldings(87.0, Map(stockA -> 100, stockB -> 300, stockC -> 200))),
     ("after selling some", TradingDay(3, 30, 2022), AccountHoldings(382.0, Map(stockA -> 100, stockC -> 200))),
   )

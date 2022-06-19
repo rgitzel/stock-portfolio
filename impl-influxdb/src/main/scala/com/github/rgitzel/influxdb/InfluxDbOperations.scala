@@ -16,12 +16,18 @@ import scala.util.{Failure, Success}
  * hide the Akka streams handling, it doesn't change
  *  based on the queries or updates themselves
  */
-class InfluxDbOperations(client: InfluxDBClientScala)(implicit materializer: Materializer) {
+class InfluxDbOperations(client: InfluxDBClientScala)(implicit
+    materializer: Materializer
+) {
   // pulling records out of Influx seems pretty consistent, all that differs
   //  is the query (of course) and a way to convert a record into some type T
-  def runQuery[T](query: Flux)(convertToDesiredType: SimplerFluxRecord => T)(implicit ec: ExecutionContext): Future[Seq[T]] = {
+  def runQuery[T](query: Flux)(
+      convertToDesiredType: SimplerFluxRecord => T
+  )(implicit ec: ExecutionContext): Future[Seq[T]] = {
     val startedAt = Instant.now
-    client.getQueryScalaApi().query(query.toString)
+    client
+      .getQueryScalaApi()
+      .query(query.toString)
       .via(
         Flow[FluxRecord]
           .map(SimplerFluxRecord(_))
@@ -36,9 +42,12 @@ class InfluxDbOperations(client: InfluxDBClientScala)(implicit materializer: Mat
       }
   }
 
-  def write(bucket: String, points: List[Point])(implicit ec: ExecutionContext): Future[Done] = {
+  def write(bucket: String, points: List[Point])(implicit
+      ec: ExecutionContext
+  ): Future[Done] = {
     val startedAt = Instant.now
-    Source.single(points)
+    Source
+      .single(points)
       .toMat(client.getWriteScalaApi.writePoints(Some(bucket)))(Keep.right)
       .run()
       .andThen {
@@ -49,7 +58,9 @@ class InfluxDbOperations(client: InfluxDBClientScala)(implicit materializer: Mat
       }
   }
 
-  def write(bucket: String, point: Point)(implicit ec: ExecutionContext): Future[Done] =
+  def write(bucket: String, point: Point)(implicit
+      ec: ExecutionContext
+  ): Future[Done] =
     write(bucket, List(point))
 
   // =============================
@@ -62,7 +73,11 @@ class InfluxDbOperations(client: InfluxDBClientScala)(implicit materializer: Mat
   private def logMessageForQuery(result: String, startedAt: Instant) =
     s"InfluxDb query ${result} after ${elapsedMillis(startedAt)}ms"
 
-  private def logMessageForWrite(result: String, points: List[Point], startedAt: Instant) =
+  private def logMessageForWrite(
+      result: String,
+      points: List[Point],
+      startedAt: Instant
+  ) =
     s"InfluxDb write of ${points.size} points ${result} after ${elapsedMillis(startedAt)}ms"
 
   private def elapsedMillis(startedAt: Instant): Long =
