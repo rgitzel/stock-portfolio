@@ -7,14 +7,13 @@ import com.github.rgitzel.stocks.money._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-// TODO: what's a better domain name for these?... probably based on "Account"?
-final case class AccountStockValuationRecord(
+final case class AccountSingleStockValuationRecord(
     day: TradingDay,
     portfolioName: AccountName,
     stock: Stock,
     value: MonetaryValue
 )
-final case class AccountValuationRecord(
+final case class AccountTotalValuationRecord(
     day: TradingDay,
     portfolioName: AccountName,
     value: MonetaryValue
@@ -24,13 +23,15 @@ final case class AccountValuationRecord(
 final case class PortfolioValuationRecord(day: TradingDay, value: MonetaryValue)
 
 trait PortfolioValueRepository {
-  def updateAccountStockRecords(records: List[AccountStockValuationRecord])(
-      implicit ec: ExecutionContext
+  def updateAccountStockRecords(
+      records: List[AccountSingleStockValuationRecord]
+  )(implicit
+      ec: ExecutionContext
   ): Future[Int]
   def updatePortfolioRecords(records: List[PortfolioValuationRecord])(implicit
       ec: ExecutionContext
   ): Future[Int]
-  def updateAccountRecords(records: List[AccountValuationRecord])(implicit
+  def updateAccountRecords(records: List[AccountTotalValuationRecord])(implicit
       ec: ExecutionContext
   ): Future[Int]
 

@@ -18,7 +18,6 @@ import com.influxdb.client.scala.{
   InfluxDBClientScalaFactory
 }
 
-import java.io.File
 import java.net.URL
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration.DurationInt
@@ -30,11 +29,12 @@ object UpdatePortfolioValuesApp extends App {
 
   def useInfluxDbClient(
       influxDBClient: InfluxDBClientScala
-  )(implicit ec: ExecutionContext): Future[Unit] = {
+  )(implicit ec: ExecutionContext): Future[_] = {
     val desiredCurrency = Currency("CAD")
 
     // my data is only good going back to 2015 (due to a few years of lost statements)
     val weeks = TradingWeek(5, 1, 2015).to(TradingWeek.mostRecent())
+//    val weeks = List(TradingWeek.mostRecent())
     println(s"processing from ${weeks.head} to ${weeks.last}")
 
     val influxDb = new InfluxDbOperations(influxDBClient)
@@ -53,8 +53,9 @@ object UpdatePortfolioValuesApp extends App {
       desiredCurrency
     )
 
-    transactionsPortfolioRepository.accountJournals().flatMap {
-      accountJournals =>
+    transactionsPortfolioRepository
+      .accountJournals()
+      .flatMap { accountJournals =>
         // something like 'loaded 4 portfolio journals: INVEST (USD), LIRA (CAD, USD), RSP (CAD, USD), TFSA (CAD, USD)'
         val journalsStrings = accountJournals
           .map { journal =>
@@ -65,30 +66,51 @@ object UpdatePortfolioValuesApp extends App {
           s"loaded ${accountJournals.size} portfolio journals: ${journalsStrings}"
         )
 
-        portfolioCalculator
-          .valuate(weeks, accountJournals)
-          .flatMap { weeklyValuations =>
-            // turn them into something we can write out to the repository
-            val weeklyRecords = weeklyValuations.map { case (week, valuation) =>
-              WeeklyRecords.buildRecords(week, valuation, desiredCurrency)
-            }
-            val recordsCount = weeklyRecords
-              .map(weeklyRecord =>
-                weeklyRecord.accountStocks.size + weeklyRecord.accounts.size + 1
-              )
-              .sum
-            println(
-              s"retrieved data for ${weeklyRecords.size} weeks (of ${weeks.size} requested)," +
-                s" and extracted ${recordsCount} records to be updated"
-            )
-
-            // and write them out
-            portfolioValueRepository
-              .updateValues(weeklyRecords)
-              .map(totalRecords => println(s"wrote ${totalRecords} records"))
-          }
-    }
+        println("valuating")
+        updateValuations(
+          weeks,
+          accountJournals,
+          portfolioCalculator,
+          portfolioValueRepository,
+          desiredCurrency
+        )
+      }
   }
+
+  def updateValuations(
+      weeks: List[TradingWeek],
+      accountJournals: List[AccountJournal],
+      portfolioCalculator: PortfolioCalculator,
+      portfolioValueRepository: InfluxDbPortfolioValueRepository,
+      desiredCurrency: Currency
+  )(implicit ec: ExecutionContext): Future[_] =
+    portfolioCalculator
+      .valuate(weeks, accountJournals)
+      .flatMap { weeklyValuations =>
+        // turn them into something we can write out to the repository
+        val weeklyRecords = weeklyValuations.map { case (week, valuation) =>
+          WeeklyRecords.buildRecords(week, valuation, desiredCurrency)
+        }
+        val recordsCount = weeklyRecords
+          .map(weeklyRecord =>
+            weeklyRecord.accountStocks.size + weeklyRecord.accounts.size + 1
+          )
+          .sum
+        println(
+          s"retrieved data for ${weeklyRecords.size} weeks (of ${weeks.size} requested)," +
+            s" and extracted ${recordsCount} records to be updated"
+        )
+
+        // and write them out
+        portfolioValueRepository
+          .updateValues(weeklyRecords)
+          .map { totalRecords =>
+            println(s"wrote ${totalRecords} records")
+            println(
+              s"final portfolio value was ${weeklyRecords.last.portfolio.value.value}"
+            )
+          }
+      }
 
   // =====================================
   // =====================================

@@ -12,7 +12,7 @@ class MoneyConverter(conversions: Map[ConversionCurrencies, Double]) {
       // nothing to do
       Some(money)
     } else {
-      multiplier(from, to).map(m => MonetaryValue(m * money.value, to))
+      multiplier(from, to).map(m => money.converted(to, m))
     }
   }
 

@@ -13,7 +13,7 @@ class InfluxDbPortfolioValueRepository(influxDb: InfluxDbOperations)
   private val databaseName = "stocks"
 
   override def updateAccountStockRecords(
-      records: List[AccountStockValuationRecord]
+      records: List[AccountSingleStockValuationRecord]
   )(implicit ec: ExecutionContext): Future[Int] = {
     val points = records.map { record =>
       Point
@@ -41,7 +41,7 @@ class InfluxDbPortfolioValueRepository(influxDb: InfluxDbOperations)
   }
 
   override def updateAccountRecords(
-      records: List[AccountValuationRecord]
+      records: List[AccountTotalValuationRecord]
   )(implicit ec: ExecutionContext): Future[Int] = {
     val points = records.map { record =>
       Point

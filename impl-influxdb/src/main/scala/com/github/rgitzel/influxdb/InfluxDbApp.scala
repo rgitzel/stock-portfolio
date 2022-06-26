@@ -6,11 +6,15 @@ import com.influxdb.client.scala.{
   InfluxDBClientScalaFactory
 }
 
+import java.net.URL
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 trait InfluxDbApp extends App {
+
+  def influxDbUrl(): URL
 
   def useInfluxDbClient(influxDBClient: InfluxDBClientScala)(implicit
       ec: ExecutionContext
@@ -22,7 +26,7 @@ trait InfluxDbApp extends App {
     ActorSystem("influxdb-app", None, None, Some(global))
 
   val influxDBClient = InfluxDBClientScalaFactory
-    .create("http://192.168.0.17:8086", "".toCharArray, "foo")
+    .create(influxDbUrl().toExternalForm, "".toCharArray, "foo")
 
   try {
     if (!influxDBClient.ping) {
@@ -31,12 +35,12 @@ trait InfluxDbApp extends App {
       println("connected successfully")
 
       val result = useInfluxDbClient(influxDBClient)(global)
-      //    .andThen {
-      //    case Success(_) =>
-      //      println("finished successfully")
-      //    case Failure(t) =>
-      //      println(s"failed on ${t.getMessage}")
-      //  }
+        .andThen {
+          case Success(_) =>
+            println("finished successfully")
+          case Failure(t) =>
+            println(s"failed on ${t.getMessage}")
+        }(global)
 
       Await.result(result, 10.seconds)
     }

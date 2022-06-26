@@ -40,7 +40,7 @@ class PortfolioCalculator(
               Future.failed(new Exception(s"no stock prices found for ${week}"))
             else
               Future.fromTry(
-                valuationsForThisWeek(
+                portfolioValuationForThisWeek(
                   week,
                   accountJournals.map(_.accountAsOf(week.friday)),
                   new MoneyConverter(exchangeRatesForThisWeek),
@@ -53,7 +53,7 @@ class PortfolioCalculator(
     }
   }
 
-  private def valuationsForThisWeek(
+  private def portfolioValuationForThisWeek(
       week: TradingWeek,
       accountsForThisWeek: List[Account],
       moneyConverter: MoneyConverter,
@@ -77,8 +77,11 @@ class PortfolioCalculator(
       closingPrices
     ) match {
       case Nil =>
+        // these are in the currency of the respective account
         val accountValuations =
           accountsForThisWeek.map(AccountCalculator.valuate(_, closingPrices))
+
+        // this total is in the "desired" currency
         val totalValue = accountValuations.flatMap { accountValuation =>
           accountValuation.valuesForStocksForCurrency
             .flatMap { case (currency, holdings) =>
@@ -87,6 +90,7 @@ class PortfolioCalculator(
             }
             .map(_.value)
         }.sum
+
         Success(
           PortfolioValuation(
             MonetaryValue(totalValue, totalsCurrency),

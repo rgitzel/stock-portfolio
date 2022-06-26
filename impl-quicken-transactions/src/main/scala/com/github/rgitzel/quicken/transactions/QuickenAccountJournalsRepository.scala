@@ -16,7 +16,9 @@ class QuickenAccountJournalsRepository(files: List[File])
     Future.fromTry(
       files.map(readQuickenFile).partition(_.isSuccess) match {
         case (successes, Nil) =>
-          accountJournalsFromLines(successes.flatMap(_.get))
+          val x = accountJournalsFromLines(successes.flatMap(_.get))
+          x.foreach(list => println(s"got ${list.size} journals"))
+          x
         case (_, failures) =>
           val filenames = files.map(_.getName).mkString(", ")
           val exceptions = failures.map(_.failed.get).mkString("\n  ")
